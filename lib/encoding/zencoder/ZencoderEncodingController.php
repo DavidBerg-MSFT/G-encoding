@@ -161,6 +161,7 @@ class ZencoderEncodingController extends EncodingController {
                 $state = $response['state'];
                 $input_state = $response['input']['state'];
                 $output_states = array();
+                $output_progress = array();
                 $output_failed = 0;
                 $output_success = 0;
                 $output_uploading = 0;
@@ -172,12 +173,13 @@ class ZencoderEncodingController extends EncodingController {
                     $event = trim(strtolower($output['current_event']));
                     if ($event == 'uploading') $output_uploading++;
                   }
+                  if (isset($output['current_event_progress'])) $output_progress[] = $output['current_event_progress'];
                   if ($state == 'queued' || $state == 'assigning') $output_queued++;
                   else if ($state == 'finished') $output_success++;
                   else if ($state == 'failed') $output_failed++;
                 }
                 $output_states = array_keys($output_states);
-                EncodingUtil::log(sprintf('Job State %s - Overall: %s; Input: %s; Outputs: %s; Queued: %d; Uploading: %d; Pending: %d; Success: %d; Failed: %d', $jobId, $state, $input_state, implode(', ', $output_states), $output_queued, $output_uploading, $num_outputs - $output_success - $output_failed, $output_success, $output_failed), 'ZencoderEncodingController::getJobStatus', __LINE__);
+                EncodingUtil::log(sprintf('Job State %s - Overall: %s; Input: %s; Outputs: %s; Progress: %s; Queued: %d; Uploading: %d; Pending: %d; Success: %d; Failed: %d', $jobId, $state, $input_state, implode(', ', $output_states), implode(', ', $output_progress), $output_queued, $output_uploading, $num_outputs - $output_success - $output_failed, $output_success, $output_failed), 'ZencoderEncodingController::getJobStatus', __LINE__);
                 
                 // downloading
                 if ($input_state == 'queued' || $input_state == 'processing' || isset($response['input']['current_event'])) $status[$jobId] = 'download';

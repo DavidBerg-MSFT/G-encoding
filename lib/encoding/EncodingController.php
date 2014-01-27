@@ -630,7 +630,7 @@ abstract class EncodingController {
       }
       
       // video bitrate
-      if (!$this->video_bitrate || $this->video_bitrate < 0 || $this->video_bitrate > self::MAX_VIDEO_BITRATE) {
+      if ($this->video_bitrate && ($this->video_bitrate < 0 || $this->video_bitrate > self::MAX_VIDEO_BITRATE)) {
         EncodingUtil::log(sprintf('Invalid video_bitrate %d', $this->video_bitrate), 'EncodingController::validate', __LINE__, TRUE);
         $this->validated = FALSE;
       }

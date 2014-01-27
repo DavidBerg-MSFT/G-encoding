@@ -55,7 +55,8 @@ RUNTIME PARAMETERS
                         formats: 1 + 2 + 4 + 8 + 16 + 32 + 64 = 127. Use of this 
                         parameter overrides the audio_bitrate, audio_only, 
                         frame_rate, format (mp4), keyframe, profile, two_pass 
-                        (false) and video_bitrate parameters
+                        (hls encoding is always one pass) and video_bitrate 
+                        parameters
 * hls_segment           Segment size (seconds) for HLS output - default 10
 * input                 [REQUIRED] Name of the input file object(s) in 
                         'storage_container'. Either a single file or a file 
