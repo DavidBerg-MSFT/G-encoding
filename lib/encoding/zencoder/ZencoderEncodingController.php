@@ -367,16 +367,16 @@ class ZencoderEncodingController extends EncodingController {
    * may be overridden to provide stats about a job input. These will be 
    * included in the test output if provided. The return value is a hash. The 
    * following stats may be returned:
-   *   audio_bit_rate    input audio bit rate (kbps)
-   *   audio_channels    input audio channels
-   *   audio_codec       input audio codec
-   *   duration          duration (seconds - decimal) of the media file
-   *   error             optional error message(s)
-   *   job_start         start time for the job as reported by the service 
-   *                     (optional)
-   *   job_stop          stop time for the job as reported by the service 
-   *                     (optional)
-   *   job_time          the total time for the job as reported by the service
+   *   audio_bit_rate           input audio bit rate (kbps)
+   *   audio_channels           input audio channels
+   *   audio_codec              input audio codec
+   *   duration                 duration (seconds - decimal) of the media file
+   *   error                    optional error message(s)
+   *   job_start                start time for the job as reported by the service 
+   *                            (optional)
+   *   job_stop                 stop time for the job as reported by the service 
+   *                            (optional)
+   *   job_time                 the total time for the job as reported by the service
    *   output_audio_bit_rate    output audio bit rates (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_channels    output audio channels (csv) - reported by encoding 
@@ -399,11 +399,11 @@ class ZencoderEncodingController extends EncodingController {
    *                            encoding service (optional)
    *   output_video_resolutions Output video resolutions (csv) - reported by encoding 
    *                            service (optional)
-   *   total_bit_rate    total bit rate of media file (kbps)
-   *   video_bit_rate    input video bit rate
-   *   video_codec       input video codec
-   *   video_frame_rate  input video frame rate (kbps)
-   *   video_resolution  input video resolution (WxH)
+   *   total_bit_rate           total bit rate of media file (kbps)
+   *   video_bit_rate           input video bit rate
+   *   video_codec              input video codec
+   *   video_frame_rate         input video frame rate (kbps)
+   *   video_resolution         input video resolution (WxH)
    * This method is only called for jobs that have successfully completed.
    * Return NULL on error
    * @param string $jobId the id of the job to return stats for
@@ -489,8 +489,8 @@ class ZencoderEncodingController extends EncodingController {
             if ($errors) $stats['error'] = implode('; ', $errors);
             
             // output_failed, output_success
-            if ($output_failed) $stats['output_failed'] = $output_failed;
-            if ($output_success) $stats['output_success'] = $output_success;
+            $stats['output_failed'] = $output_failed;
+            $stats['output_success'] = $output_success;
             
             // purge empty stats and print debug
             $debug = '';

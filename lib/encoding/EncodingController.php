@@ -508,12 +508,16 @@ abstract class EncodingController {
   public final function stats() {
     if (is_array($this->jobs) && count($this->jobs)) {
       $valid_job_stats = explode(',', self::VALID_JOB_STATS);
+      $same_region = $this->sameRegion($this->storage_controller);
       $i = 1;
       foreach($this->jobs as $job) {
         $suffix = count($this->jobs) > 1 ? $i++ : '';
         printf("input%s=%s\n", $suffix, $job['input']);
         if (isset($job['input_format'])) printf("input_format%s=%s\n", $suffix, $job['input_format']);
-        if (isset($job['input_size'])) printf("input_size%s=%s\n", $suffix, $job['input_size']);
+        if (isset($job['input_size'])) {
+          printf("input_size%s=%s\n", $suffix, $job['input_size']);
+          printf("input_size_mb%s=%s\n", $suffix, round(($job['input_size']/1024)/1024, self::ROUND_PRECISION));
+        }
         if (is_array($job['job_stats'])) {
           ksort($job['job_stats']);
           foreach($job['job_stats'] as $stat => $val) {
@@ -526,9 +530,11 @@ abstract class EncodingController {
         if (isset($job['output_files']) && $job['output_files']) {
           printf("output_files%s=%d\n", $suffix, $job['output_files']);
           printf("output_size%s=%d\n", $suffix, $job['output_size']);
+          printf("output_size_mb%s=%s\n", $suffix, round(($job['output_size']/1024)/1024, self::ROUND_PRECISION));
           printf("same_region%s=%s\n", $this->sameRegion($this->storage_controller));
           printf("size_ratio%s=%s\n", $suffix, round(($job['output_size']/$job['input_size'])*100, self::ROUND_PRECISION));
         }
+        printf("same_region%s=%d\n", $suffix, $same_region);
         if (isset($job['start'])) printf("start%s=%d\n", $suffix, $job['start']);
         printf("status%s=%s\n", $suffix, $job['status']);
         if (isset($job['stop'])) printf("stop%s=%d\n", $suffix, $job['stop']);
@@ -661,16 +667,16 @@ abstract class EncodingController {
    * may be overridden to provide stats about a job input. These will be 
    * included in the test output if provided. The return value is a hash. The 
    * following stats may be returned:
-   *   audio_bit_rate    input audio bit rate (kbps)
-   *   audio_channels    input audio channels
-   *   audio_codec       input audio codec
-   *   duration          duration (seconds - decimal) of the media file
-   *   error             optional error message(s)
-   *   job_start         start time for the job as reported by the service 
-   *                     (optional)
-   *   job_stop          stop time for the job as reported by the service 
-   *                     (optional)
-   *   job_time          the total time for the job as reported by the service
+   *   audio_bit_rate           input audio bit rate (kbps)
+   *   audio_channels           input audio channels
+   *   audio_codec              input audio codec
+   *   duration                 duration (seconds - decimal) of the media file
+   *   error                    optional error message(s)
+   *   job_start                start time for the job as reported by the service 
+   *                            (optional)
+   *   job_stop                 stop time for the job as reported by the service 
+   *                            (optional)
+   *   job_time                 the total time for the job as reported by the service
    *   output_audio_bit_rate    output audio bit rates (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_channels    output audio channels (csv) - reported by encoding 
@@ -693,11 +699,11 @@ abstract class EncodingController {
    *                            encoding service (optional)
    *   output_video_resolutions Output video resolutions (csv) - reported by encoding 
    *                            service (optional)
-   *   total_bit_rate    total bit rate of media file (kbps)
-   *   video_bit_rate    input video bit rate
-   *   video_codec       input video codec
-   *   video_frame_rate  input video frame rate (kbps)
-   *   video_resolution  input video resolution (WxH)
+   *   total_bit_rate           total bit rate of media file (kbps)
+   *   video_bit_rate           input video bit rate
+   *   video_codec              input video codec
+   *   video_frame_rate         input video frame rate (kbps)
+   *   video_resolution         input video resolution (WxH)
    * This method is only called for jobs that have successfully completed.
    * Return NULL on error
    * @param string $jobId the id of the job to return stats for

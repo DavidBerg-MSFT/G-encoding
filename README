@@ -81,12 +81,12 @@ RUNTIME PARAMETERS
                         the following:
                           zencoder
 * service_key           [REQUIRED] API authentication key or user ID
-* service_region        Encoding service region where job processing should 
-                        occur. Region identifiers vary between encoding 
-                        services
 * service_param[1-5]    Service specific parameters - review README files 
                         located in lib/encoding/[service] for details on how
                         these parameters are used
+* service_region        Encoding service region where job processing should 
+                        occur. Region identifiers vary between encoding 
+                        services
 * service_secret        Optional API authentication secret or password (if 
                         required)
 * storage_container     [REQUIRED] Name of the storage service container/bucket 
@@ -119,6 +119,7 @@ input_audio_codec       input audio codec (optional)
 input_duration          duration (seconds - decimal) of the media file (optional)
 input_format            Input format (based on file extension)
 input_size              Size of the input file (bytes)
+input_size_mb           Size of the input file (megabytes)
 input_total_bit_rate    total bit rate of media file - kbps (optional)
 input_video_bit_rate    input video bit rate - kbps (optional)
 input_video_codec       input video codec (optional)
@@ -158,6 +159,8 @@ output_files            Number of output files produced by the job - 1 unless
                         include both m3u8 and ts files in the count
 output_size             Size of the output file(s) (bytes) - for HLS this is 
                         the sum of the size of all segmented files
+output_size_mb          Size of the output file(s) (megabytes) - for HLS this 
+                        is the sum of the size of all segmented files
 output_success          Number of successful outputs generated (optional)
 same_region             1 if the storage service region (where the input media 
                         resides) is the same as the encoding service region. 
