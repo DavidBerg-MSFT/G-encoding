@@ -7,7 +7,9 @@ every possible encoding scenario, rather, a set of common encoding options.
 
 
 RUNTIME PARAMETERS
-* audio_bitrate         Desired audio bitrate (kbps) - default is 64
+* audio_bitrate         Desired audio bitrate (kbps) - if not specified, 
+                        encoding service will select an appropriate rate based
+                        on the input file and other settings
 * bframes               [0-16] Maximum number of consecutive B-frames for h.264
                         encoding (not applicable to other output formats). 
                         Values above 5 or 6 rarely provide much benefit. 
@@ -102,7 +104,9 @@ RUNTIME PARAMETERS
                         Valid options include:
                           s3: AWS S3 (default)
 * two_pass              [0|1] Enable two-pass video encoding? (default 0)
-* video_bitrate         Desired video bitrate (kbps) - default is 512
+* video_bitrate         Desired video bitrate (kbps)- if not specified, 
+                        encoding service will select an appropriate rate based
+                        on the input file and other settings
 * width                 Desired video resolution width (height will be adjusted 
                         accordingly). If not specified, the source resolution 
                         will be maintained. May be necessary in order to 
@@ -157,6 +161,8 @@ output_video_resolutions Output video resolutions (csv) - reported by encoding
 output_files            Number of output files produced by the job - 1 unless
                         HLS segmented output used in which case the total will 
                         include both m3u8 and ts files in the count
+output_mb_minute        Average megabytes per minute of output (optional)
+output_minutes          Total minutes of all output files (optional)
 output_size             Size of the output file(s) (bytes) - for HLS this is 
                         the sum of the size of all segmented files
 output_size_mb          Size of the output file(s) (megabytes) - for HLS this 

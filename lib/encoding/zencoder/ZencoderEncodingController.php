@@ -463,16 +463,16 @@ class ZencoderEncodingController extends EncodingController {
                 $output['state'] == 'failed' ? $output_failed++ : $output_success++;
                 
                 // output status
-                if (isset($output['audio_bitrate_in_kbps']) && !in_array($output['audio_bitrate_in_kbps'], $stats['output_audio_bit_rate'])) $stats['output_audio_bit_rate'][] = $output['audio_bitrate_in_kbps']*1;
-                if (isset($output['channels']) && !in_array($output['channels'], $stats['output_audio_channels'])) $stats['output_audio_channels'][] = $output['channels']*1;
-                if (isset($output['audio_codec']) && !in_array($output['audio_codec'], $stats['output_audio_codecs'])) $stats['output_audio_codecs'][] = $output['audio_codec'];
-                if (isset($output['duration_in_ms']) && !in_array($output['duration_in_ms'], $stats['output_durations'])) $stats['output_durations'][] = $output['duration_in_ms']/1000;
-                if (isset($output['format']) && !in_array($output['format'], $stats['output_formats'])) $stats['output_formats'][] = $output['format'];
-                if (isset($output['total_bitrate_in_kbps']) && !in_array($output['total_bitrate_in_kbps'], $stats['output_total_bit_rates'])) $stats['output_total_bit_rates'][] = $output['total_bitrate_in_kbps']*1;
-                if (isset($output['video_bitrate_in_kbps']) && !in_array($output['video_bitrate_in_kbps'], $stats['output_video_bit_rates'])) $stats['output_video_bit_rates'][] = $output['video_bitrate_in_kbps']*1;
-                if (isset($output['video_codec']) && !in_array($output['video_codec'], $stats['output_video_codecs'])) $stats['output_video_codecs'][] = $output['video_codec'];
-                if (isset($output['frame_rate']) && !in_array($output['frame_rate'], $stats['output_video_frame_rates'])) $stats['output_video_frame_rates'][] = $output['frame_rate']*1;
-                if (isset($output['width']) && isset($output['height']) && !in_array($res = sprintf('%dx%d', $output['width'], $output['height']), $stats['output_video_resolutions'])) $stats['output_video_resolutions'][] = $res;
+                if (isset($output['audio_bitrate_in_kbps'])) $stats['output_audio_bit_rate'][] = $output['audio_bitrate_in_kbps']*1;
+                if (isset($output['channels'])) $stats['output_audio_channels'][] = $output['channels']*1;
+                if (isset($output['audio_codec'])) $stats['output_audio_codecs'][] = $output['audio_codec'];
+                if (isset($output['duration_in_ms'])) $stats['output_durations'][] = $output['duration_in_ms']/1000;
+                if (isset($output['format'])) $stats['output_formats'][] = $output['format'];
+                if (isset($output['total_bitrate_in_kbps'])) $stats['output_total_bit_rates'][] = $output['total_bitrate_in_kbps']*1;
+                if (isset($output['video_bitrate_in_kbps'])) $stats['output_video_bit_rates'][] = $output['video_bitrate_in_kbps']*1;
+                if (isset($output['video_codec'])) $stats['output_video_codecs'][] = $output['video_codec'];
+                if (isset($output['frame_rate'])) $stats['output_video_frame_rates'][] = $output['frame_rate']*1;
+                if (isset($output['width']) && isset($output['height'])) $stats['output_video_resolutions'][] = sprintf('%dx%d', $output['width'], $output['height']);
               }
             }
             sort($finished_at);
