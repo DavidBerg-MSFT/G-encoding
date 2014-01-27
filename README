@@ -41,14 +41,14 @@ RUNTIME PARAMETERS
                         https://developer.apple.com/library/ios/technotes/tn2224/_index.html
                         This option supports the following HLS output formats:
                         
-                        BIT  16:9 Res  4:3 Res   Profile        Video Bitrate   Audio Bitrate  Keyframes  Frame Rate
-                        1    NA        NA        NA             NA (audio only) 64             NA         NA
-                        2    400x225   400x300   Baseline, 3.0  200             64             45         15
-                        4    480x270   480x360   Baseline, 3.0  400             96             90         29.97
-                        8    640x360   640x480   Baseline, 3.0  600             128            120        29.97
-                        16   960x540   960x720   Main, 3.1      1800            128            240        29.97
-                        32   1024x576  1024x768  Main, 3.1      2000            128            300        29.97
-                        64   1280x720  1280x960  Main, 3.1      4500            128            300        29.97
+BIT  16:9 Res  4:3 Res   Profile        Video Bitrate   Audio Bitrate  Keyframes  Frame Rate
+1    NA        NA        NA             NA (audio only) 64             NA         NA
+2    400x225   400x300   Baseline, 3.0  200             64             45         15
+4    480x270   480x360   Baseline, 3.0  400             96             90         29.97
+8    640x360   640x480   Baseline, 3.0  600             128            120        29.97
+16   960x540   960x720   Main, 3.1      1800            128            240        29.97
+32   1024x576  1024x768  Main, 3.1      2000            128            300        29.97
+64   1280x720  1280x960  Main, 3.1      4500            128            300        29.97
                         
                         To use this setting - simply add up the BIT value for 
                         each desired output format. For example, to enable all 
