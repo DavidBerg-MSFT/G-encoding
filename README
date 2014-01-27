@@ -190,5 +190,5 @@ Those result metrics listed as optional may or may not be provided depending
 on the encoding service capabilities for providing such stats.
 
 If test results in multiple jobs (e.g. input parameter results in multiple 
-files), the following metric names will utilize incrementing numeric suffixes 
+files), the preceeding metric names will utilize incrementing numeric suffixes 
 (e.g. time1, time2).
