@@ -1,0 +1,16 @@
+Implements necessary functionality for encoding testing against the zencoder
+platform.
+
+== API Specific Runtime Parameters ==
+* service_param1        Optional nickname of the credentials zencoder should
+                        use to interact with the storage_container. These must
+                        be saved in https://app.zencoder.com/account/credentials
+                        If not set, runtime credential parameters will be used.
+                        Set this parameter to '1' to use default credentials
+* service_param2        If set to 1, jobs will be started using integration
+                        mode. Encoding will be shortened to 5 seconds and job 
+                        will not be charged
+* service_param3        If set to 1, zencoder 'strict' mode will be enabled 
+                        signifying that encoding settings problems will not be 
+                        automatically corrected. For more details, see 
+                        https://app.zencoder.com/docs/api/encoding/general-output-settings/strict

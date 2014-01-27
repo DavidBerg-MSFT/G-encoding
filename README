@@ -1,0 +1,184 @@
+Encoding Service Benchmark
+
+Measures performance of encoding services by submitting a test job or jobs and 
+capturing relevant metrics. This test suite supports a subset of common 
+capabilities across multiple encoding services. It is not designed to enable 
+every possible encoding scenario, rather, a set of common encoding options.
+
+
+RUNTIME PARAMETERS
+* audio_bitrate         Desired audio bitrate (kbps) - default is 64
+* bframes               [0-16] Maximum number of consecutive B-frames for h.264
+                        encoding (not applicable to other output formats). 
+                        Values above 5 or 6 rarely provide much benefit. 
+                        Default is 3
+* cleanup               [0|1] whether or not to cleanup output files generated
+                        during testing. Default is 1. If set to 0, output files
+                        will remain in the same storage container as the input
+                        file(s) with a prefix 'ch[random number]'
+* concurrent_requests   The max number of concurrent API requests to allow 
+                        during testing. This is only applicable to tests
+                        involving multiple input files (thus multiple 
+                        concurrent jobs). When jobs are pending, the test 
+                        agent will make concurrent API requests for job 
+                        status until all jobs are complete. Default is 8. Max 
+                        is 32
+* debug                 [0|1] Enable verbose logging? (default 0)
+* format                Desired output format, one of the following:
+                          aac =>  aac audio codec (audio default)
+                          mp4 =>  h.264 video / aac audio codec (video default)
+                          ogg =>  theora video and vorbis audio codec
+                          webm => vp8 video and vorbis audio codec
+                        File extensions used for output files are the same as
+                        the format designation
+* frame_rate            Optional frame rate for output - if not specified, 
+                        original frame rate will be assumed
+* hls                   For 'mp4' format jobs where the desired output is an 
+                        HLS compatible playlist. For details on recommended HLS
+                        settings, see 
+                        https://developer.apple.com/library/ios/technotes/tn2224/_index.html
+                        This option supports the following HLS output formats:
+                        
+                        BIT  16:9 Res  4:3 Res   Profile        Video Bitrate   Audio Bitrate  Keyframes  Frame Rate
+                        1    NA        NA        NA             NA (audio only) 64             NA         NA
+                        2    400x225   400x300   Baseline, 3.0  200             64             45         15
+                        4    480x270   480x360   Baseline, 3.0  400             96             90         29.97
+                        8    640x360   640x480   Baseline, 3.0  600             128            120        29.97
+                        16   960x540   960x720   Main, 3.1      1800            128            240        29.97
+                        32   1024x576  1024x768  Main, 3.1      2000            128            300        29.97
+                        64   1280x720  1280x960  Main, 3.1      4500            128            300        29.97
+                        
+                        To use this setting - simply add up the BIT value for 
+                        each desired output format. For example, to enable all 
+                        formats: 1 + 2 + 4 + 8 + 16 + 32 + 64 = 127. Use of this 
+                        parameter overrides the audio_bitrate, audio_only, 
+                        frame_rate, format (mp4), keyframe, profile, two_pass 
+                        (false) and video_bitrate parameters
+* hls_segment           Segment size (seconds) for HLS output - default 10
+* input                 [REQUIRED] Name of the input file object(s) in 
+                        'storage_container'. Either a single file or a file 
+                        pattern (e.g. myvideo.mp4; *video*.mp4)
+* input_downloaders     If the encoding service supports concurrent downloading
+                        of input files, this parameter may define the number of
+                        concurrent processes. Default 5
+* input_min_segment     If the encoding service supports concurrent downloading
+                        of input files, this parameter may define the minimum 
+                        download segment size for workers. Size quantifiers 
+                        supported: B (bytes), KB (kilobytes), MB (megabytes)
+                        GB (gigabytes). Default is 8MB
+* keyframe              Number of keyframes per second - default 300
+* profile               Desired h.264 profile (for 'mp4' format jobs only). 
+                        Valid options include:
+                          baseline  Baseline, 3.0 (DEFAULT)
+                          main      Main, 3.1
+                          high      High
+                        For further details regarding h.264 profiles see 
+                        http://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Profiles
+* reference_frames      [0-16] Number of reference frames to use for h.264
+                        encoding (not applicable to other output formats). 
+                        Default is 3
+* service               [REQUIRED] Encoding service to use for testing. One of
+                        the following:
+                          zencoder
+* service_key           [REQUIRED] API authentication key or user ID
+* service_region        Encoding service region where job processing should 
+                        occur. Region identifiers vary between encoding 
+                        services
+* service_param[1-5]    Service specific parameters - review README files 
+                        located in lib/encoding/[service] for details on how
+                        these parameters are used
+* service_secret        Optional API authentication secret or password (if 
+                        required)
+* storage_container     [REQUIRED] Name of the storage service container/bucket 
+                        where input file(s) reside and output files will be 
+                        written to
+* storage_key           [REQUIRED] API key for the storage_container. These 
+                        credentials are necessary for the test agent to inspect
+                        encoding input and output files and for the encoding 
+                        service to access and write them
+* storage_region        Service region where 'storage_container' resides
+* storage_secret        [REQUIRED] API secret for the 'storage_container' service
+* storage_service       The type of service where storage_container resides. 
+                        Valid options include:
+                          s3: AWS S3 (default)
+* two_pass              [0|1] Enable two-pass video encoding? (default 0)
+* video_bitrate         Desired video bitrate (kbps) - default is 512
+* width                 Desired video resolution width (height will be adjusted 
+                        accordingly). If not specified, the source resolution 
+                        will be maintained. May be necessary in order to 
+                        accommodate designated video_bitrate
+
+
+RESULT METRICS
+error                   An error message string - if provided by the service 
+                        (for status partial or fail)
+input                   Name of the input file (in storage_container)
+input_audio_bit_rate    input audio bit rate - kbps (optional)
+input_audio_channels    input audio channels (optional)
+input_audio_codec       input audio codec (optional)
+input_duration          duration (seconds - decimal) of the media file (optional)
+input_format            Input format (based on file extension)
+input_size              Size of the input file (bytes)
+input_total_bit_rate    total bit rate of media file - kbps (optional)
+input_video_bit_rate    input video bit rate - kbps (optional)
+input_video_codec       input video codec (optional)
+input_video_frame_rate  input video frame rate (optional)
+input_video_resolution  input video resolution [WxH] (optional)
+job_start               start time for the job as reported by the service 
+                        (optional)
+job_stop                stop time for the job as reported by the service 
+                        (optional)
+job_time                the total time for the job as reported by the service 
+                        (optional)
+output_failed           Number of outputs that failed to generate (optional)
+
+output_audio_bit_rate   output audio bit rates (csv) - reported by encoding 
+                        service (optional)
+output_audio_channels   output audio channels (csv) - reported by encoding 
+                        service (optional)
+output_audio_codecs     output audio codecs (csv) - reported by encoding 
+                        service (optional)
+output_durations        Output durations (csv) - reported by encoding service 
+                        (optional)
+output_formats          Output formats (csv) - reported by encoding service 
+                        (optional)
+output_total_bit_rates  Output total bit rates - kbps (csv) - as reported by 
+                        encoding service (optional)
+output_video_bit_rates  Output video bit rates - kbps (csv) - as reported by 
+                        encoding service (optional)
+output_video_codecs     Output video codecs (csv) - as reported by encoding 
+                        service (optional)
+output_video_frame_rates Output video frame rates (csv) - as reported by 
+                        encoding service (optional)
+output_video_resolutions Output video resolutions (csv) - reported by encoding 
+                        service (optional)
+
+output_files            Number of output files produced by the job - 1 unless
+                        HLS segmented output used in which case the total will 
+                        include both m3u8 and ts files in the count
+output_size             Size of the output file(s) (bytes) - for HLS this is 
+                        the sum of the size of all segmented files
+output_success          Number of successful outputs generated (optional)
+same_region             1 if the storage service region (where the input media 
+                        resides) is the same as the encoding service region. 
+                        Different services/regions may result in longer 
+                        download/upload times
+size_ratio              The ratio of output_size to input_size expressed as a
+                        percentage. A value less than 100 signifies that the 
+                        output size was smaller than the input size
+start                   Timestamp representing when the job started
+status                  success, partial or fail
+stop                    Timestamp representing when the job ended
+time                    Total job time (stop - start)
+time_download           Time to download the input file (secs)
+time_encode             Time spent transcoding (secs)
+time_queue              Time the job spent in queue state (secs)
+time_upload             Time to upload the transcoded files (secs)
+
+
+Those result metrics listed as optional may or may not be provided depending
+on the encoding service capabilities for providing such stats.
+
+If test results in multiple jobs (e.g. input parameter results in multiple 
+files), the following metric names will utilize incrementing numeric suffixes 
+(e.g. time1, time2).
