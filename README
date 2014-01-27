@@ -103,7 +103,8 @@ RUNTIME PARAMETERS
 * storage_secret        [REQUIRED] API secret for the 'storage_container' service
 * storage_service       The type of service where storage_container resides. 
                         Valid options include:
-                          s3: AWS S3 (default)
+                          s3:  AWS S3 (default)
+                          gcs: Google Cloud Storage
 * two_pass              [0|1] Enable two-pass video encoding? (default 0)
 * video_bitrate         Desired video bitrate (kbps)- if not specified, 
                         encoding service will select an appropriate rate based
@@ -158,7 +159,6 @@ output_video_frame_rates Output video frame rates (csv) - as reported by
                         encoding service (optional)
 output_video_resolutions Output video resolutions (csv) - reported by encoding 
                         service (optional)
-
 output_files            Number of output files produced by the job - 1 unless
                         HLS segmented output used in which case the total will 
                         include both m3u8 and ts files in the count
