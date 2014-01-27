@@ -179,7 +179,11 @@ size_ratio              The ratio of output_size to input_size expressed as a
 start                   Timestamp representing when the job started
 status                  success, partial or fail
 stop                    Timestamp representing when the job ended
-time                    Total job time (stop - start)
+time                    Total job time (stop - start). time* metrics are 
+                        recorded by the test agent using job polling. These 
+                        are independent of the comparable metrics reported by 
+                        the encoding service (e.g. job_start, job_stop, 
+                        job_time)
 time_download           Time to download the input file (secs)
 time_encode             Time spent transcoding (secs)
 time_queue              Time the job spent in queue state (secs)
