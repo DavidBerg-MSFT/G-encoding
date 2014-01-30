@@ -90,6 +90,23 @@ class S3ObjectStorageController extends ObjectStorageController {
   }
   
   /**
+   * returns the URL to the $object specified (in the designated container)
+   * @param string $object name of the object
+   * @param boolean $auth whether or not to include auth parameters using 
+   * standard http auth method (e.g.) http://[user]:[pass]@[url]
+   * @return string
+   */
+  public function getObjectUrl($object, $auth=FALSE) {
+    $url = 'https://' . self::DEFAULT_S3_ENDPOINT;
+    $container = $this->getContainer();
+    $dns_containers = TRUE;
+    if ($dns_containers) $url = str_replace('://', '://' . $container . '.', $url);
+    $url = sprintf('%s%s%s', $url, $dns_containers ? '' : '/' . $container, $object ? '/' . str_replace('%2F', '/', urlencode($object)) : '');
+    if ($auth) $url = str_replace('://', sprintf('://%s:%s@', urlencode($this->api_key), urlencode($this->api_secret)), $url);
+    return $url;
+  }
+  
+  /**
    * Returns the S3 API URL to use for the specified $container and $object
    * @param string $container the container to return the URL for
    * @param string $object optional object to include in the URL

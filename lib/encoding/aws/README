@@ -1,0 +1,5 @@
+Implements necessary functionality for encoding testing against the 
+AWS Elastic Transcoder platform.
+
+== API Specific Runtime Parameters ==
+None

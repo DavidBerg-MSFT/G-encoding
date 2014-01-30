@@ -141,7 +141,8 @@ class ZencoderEncodingController extends EncodingController {
    *   success   job completed successfully
    *   partial   job completed partially successful
    *   fail      job failed
-   * return NULL on error (test will abort)
+   * @param array $jobIds the job IDs to return status for
+   * @return NULL on error (test will abort)
    * @return array
    */
   protected function getJobStatus($jobIds) {
@@ -503,7 +504,7 @@ class ZencoderEncodingController extends EncodingController {
                 $debug .= $key . '=' . $stats[$key] . '; ';
               }
             }
-            EncodingUtil::log(sprintf('Got input stats for job %s: %s', $jobId, $debug), 'ZencoderEncodingController::jobStats', __LINE__);
+            EncodingUtil::log(sprintf('Got stats for job %s: %s', $jobId, $debug), 'ZencoderEncodingController::jobStats', __LINE__);
           }
           else EncodingUtil::log(sprintf('Job stats API response for %s does not have the necessary input_media_file response key', $jobId), 'ZencoderEncodingController::jobStats', __LINE__, TRUE);
         }

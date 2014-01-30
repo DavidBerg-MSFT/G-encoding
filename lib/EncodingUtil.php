@@ -23,6 +23,8 @@ class EncodingUtil {
    *   lowest_status: the lowest status code returned
    *   highest_status: the highest status code returned
    *   body:     response body (only included when $retBody is TRUE)
+   *   form:     optional hash representing form fields that should be included
+   *             the request
    * returns NULL if any of the curl commands fail
    * @param array $requests array defining the http requests to invoke. Each 
    * element in this array is a hash with the following possible keys:
@@ -39,11 +41,25 @@ class EncodingUtil {
    */
   public static function curl($requests, $retBody=FALSE) {
     global $bm_param_debug;
-    global $encoding_concurrent_requests;
+    static $encoding_concurrent_requests;
+    static $max_api_requests_sec;
+    static $last_api_time;
+    static $last_api_time_requests;
     
     if (!isset($bm_param_debug)) $bm_param_debug = getenv('bm_param_debug') == '1';
     if (!isset($encoding_concurrent_requests)) $encoding_concurrent_requests = getenv('bm_param_concurrent_requests')*1;
     if (!$encoding_concurrent_requests) $encoding_concurrent_requests = EncodingController::DEFAULT_CONCURRENT_REQUESTS;
+    if (!isset($max_api_requests_sec)) {
+      $max_api_requests_sec = getenv('bm_param_max_api_requests_sec');
+      if (!is_numeric($max_api_requests_sec) || $max_api_requests_sec < 1) $max_api_requests_sec = FALSE;
+    }
+    if ($max_api_requests_sec && $last_api_time >= (time() - 1) && $last_api_time_requests >= $max_api_requests_sec) {
+      self::log(sprintf('Sleeping 1 second because max API requests %d would be exceeded', $max_api_requests_sec), 'EncodingUtil::curl', __LINE__);
+      sleep(1);
+    }
+    else if ($last_api_time < time()) {
+      $last_api_time_requests = 0;
+    }
     
     $result = array('urls' => array(), 'request' => array(), 'response' => array(), 'results' => array(), 'status' => array(), 'lowest_status' => 0, 'highest_status' => 0);
     $fstart = microtime(TRUE);
@@ -81,10 +97,25 @@ class EncodingUtil {
       foreach($request['headers'] as $header => $val) $cmd .= sprintf(' -H "%s: %s"', $header, $val);
       if (isset($request['range'])) $cmd .= ' -r ' . $request['range'];
       $result['urls'][$i] = $request['url'];
+      if (isset($request['form']) && is_array($request['form'])) {
+        foreach($request['form'] as $field => $val) {
+          $cmd .= sprintf(" --form-string '%s=%s'", $field, str_replace("'", "\'", $val));
+        }
+      }
       $cmd .= sprintf(' "%s"', $request['url']);
       if ($bm_param_debug) self::log(sprintf('Added curl command: %s', $cmd), 'EncodingUtil::curl', __LINE__);
       $ofiles[$i] = sprintf('%s/%s', getenv('bm_run_dir'), 'curl_output_' . rand());
+      
+      // max_api_requests_sec
+      if ($max_api_requests_sec && ($request_num % $max_api_requests_sec) == 0) {
+        self::log(sprintf('Number of concurrent requests %d exceeds max API requests/second %d. Added 1 second sleep at %d', count($requests), $max_api_requests_sec, $request_num), 'EncodingUtil::curl', __LINE__);
+        fwrite($fp, sprintf("sleep 1\n"));
+        $last_api_time_requests = 0;
+      }
+      else $last_api_time_requests++;
+      
       fwrite($fp, sprintf("%s > %s 2>&1 &\n", $cmd, $ofiles[$i]));
+      
       // max concurrent requests
       if (($request_num % $encoding_concurrent_requests) == 0) {
         self::log(sprintf('Number of concurrent requests %d exceeds max allowed %d. Added wait at %d', count($requests), $encoding_concurrent_requests, $request_num), 'EncodingUtil::curl', __LINE__);
@@ -129,6 +160,8 @@ class EncodingUtil {
       $result = NULL;
     }
     else if ($bm_param_debug) foreach(array_keys($requests) as $i) self::log(sprintf('  %s => %d', $result['urls'][$i], $result['status'][$i]), 'EncodingUtil::curl', __LINE__);
+    
+    $last_api_time = time();
 
     return $result;
   }
@@ -164,7 +197,12 @@ class EncodingUtil {
       $msg = preg_replace('/Key:\s+([^"]+)/', 'Key: xxx', $msg);
       $msg = preg_replace('/Token:\s+([^"]+)/', 'Token: xxx', $msg);
       $msg = preg_replace('/Authorization:\s+([^"]+)/', 'Authorization: xxx', $msg);
-      $msg = preg_replace('/:\/\/([^:]+):([^@]+)@/', '://xxx:xxx@', $msg);
+      foreach(array(getenv('bm_param_service_key'), getenv('bm_param_service_secret'), getenv('bm_param_storage_key'), getenv('bm_param_storage_secret')) as $secret) {
+        if ($secret) {
+          $msg = str_replace($secret, 'xxx', $msg);
+          $msg = str_replace(urlencode($secret), 'xxx', $msg);
+        }
+      }
       
     	global $base_error_level;
     	$source = basename($source);

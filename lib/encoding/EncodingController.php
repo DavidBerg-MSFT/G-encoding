@@ -8,12 +8,12 @@ require_once(dirname(dirname(__FILE__)) . '/storage/ObjectStorageController.php'
  */
 abstract class EncodingController {
   
-  const DEFAULT_BFRAMES = 3;
+  const DEFAULT_BFRAMES = 2;
   const DEFAULT_CONCURRENT_REQUESTS = 8;
   const DEFAULT_FORMAT = '_default_';
   const DEFAULT_FORMAT_AUDIO = 'aac';
   const DEFAULT_FORMAT_VIDEO = 'mp4';
-  const DEFAULT_KEYFRAME = 300;
+  const DEFAULT_KEYFRAME = 250;
   const DEFAULT_REFERENCE_FRAMES = 3;
   const MAX_AUDIO_BITRATE = 1024;
   const MAX_BFRAMES = 16;
@@ -139,14 +139,14 @@ abstract class EncodingController {
               // set runtime parameters
               $_instances[$service]->service = $service;
               $_instances[$service]->audio_bitrate = getenv('bm_param_audio_bitrate') ? getenv('bm_param_audio_bitrate')*1 : NULL;
-              $_instances[$service]->bframes = getenv('bm_param_bframes')*1;
-              if (!$_instances[$service]->bframes) $_instances[$service]->bframes = self::DEFAULT_BFRAMES;
+              if (getenv('bm_param_bframes') !== NULL) $_instances[$service]->bframes = getenv('bm_param_bframes')*1;
+              if (!isset($_instances[$service]->bframes)) $_instances[$service]->bframes = self::DEFAULT_BFRAMES;
               $_instances[$service]->cleanup = getenv('bm_param_cleanup') === NULL || getenv('bm_param_cleanup') == '1';
               $_instances[$service]->concurrent_requests = getenv('bm_param_concurrent_requests')*1;
               if (!$_instances[$service]->concurrent_requests) $_instances[$service]->concurrent_requests = self::DEFAULT_CONCURRENT_REQUESTS;
               $encoding_concurrent_requests = $_instances[$service]->concurrent_requests;
-              $_instances[$service]->reference_frames = getenv('bm_param_reference_frames')*1;
-              if (!$_instances[$service]->reference_frames) $_instances[$service]->reference_frames = self::DEFAULT_REFERENCE_FRAMES;
+              if (getenv('bm_param_reference_frames') !== NULL) $_instances[$service]->reference_frames = getenv('bm_param_reference_frames')*1;
+              if (!isset($_instances[$service]->reference_frames)) $_instances[$service]->reference_frames = self::DEFAULT_REFERENCE_FRAMES;
               $_instances[$service]->format = trim(strtolower(getenv('bm_param_format')));
               $_instances[$service]->frame_rate = getenv('bm_param_frame_rate')*1;
               $_instances[$service]->hls = getenv('bm_param_hls');
@@ -423,6 +423,7 @@ abstract class EncodingController {
                 if ($keyframe) $output['keyframe'] = $keyframe;
                 if ($width) $output['width'] = $width; 
               }
+              else $output['audio_only'] = TRUE;
               $outputs[] = $output;
             }
             else EncodingUtil::log(sprintf('Skipping hls ini key %s because no audio_bitrate has been defined (required)', $key), 'EncodingController::run', __LINE__, TRUE);
@@ -459,7 +460,7 @@ abstract class EncodingController {
       $output_num = 0;
       foreach($outputs as $i => $output) {
         // audio only
-        $output['audio_only'] = $audio_only;
+        if (!isset($output['audio_only'])) $output['audio_only'] = $audio_only;
         // incompatible video output
         if ($output['audio_only'] && isset($output['video_bitrate'])) {
           // HLS - remove output
@@ -477,7 +478,7 @@ abstract class EncodingController {
             if (isset($output['width'])) unset($output['width']);
           }
         }
-        $ofile = sprintf('%s/%s_a%s%s_%d.%s', $output_prefix, str_replace('.' . strtoupper($iformat), '', str_replace('.' . $iformat, '', basename($object))), isset($output['audio_bitrate']) ? $output['audio_bitrate'] : '-def', $output['audio_only'] ? '' : '_v' . $output['video_bitrate'], ++$output_num, $this->hls ? 'm3u8' : $oformat);
+        $ofile = sprintf('%s/%s_a%s%s_%d.%s', $output_prefix, str_replace('.' . strtoupper($iformat), '', str_replace('.' . $iformat, '', basename($object))), isset($output['audio_bitrate']) ? $output['audio_bitrate'] : '-def', $output['audio_only'] ? '' : '_v' . (isset($output['video_bitrate']) ? $output['video_bitrate'] : '-def'), ++$output_num, $this->hls ? 'm3u8' : $oformat);
         $output['output'] = $ofile;
         $debug = 'Adding output file with settings: ';
         foreach($output as $key => $val) $debug .= $key . '=' . $val . '; ';
@@ -515,6 +516,7 @@ abstract class EncodingController {
           printf("input_size%s=%s\n", $suffix, $job['input_size']);
           printf("input_size_mb%s=%s\n", $suffix, round(($job['input_size']/1024)/1024, self::ROUND_PRECISION));
         }
+        printf("job_status%s=%s\n", $suffix, $job['status']);
         if (is_array($job['job_stats'])) {
           ksort($job['job_stats']);
           foreach($job['job_stats'] as $stat => $val) {
@@ -545,7 +547,6 @@ abstract class EncodingController {
         }
         printf("same_region%s=%d\n", $suffix, $same_region);
         if (isset($job['start'])) printf("start%s=%d\n", $suffix, $job['start']);
-        printf("status%s=%s\n", $suffix, $job['status']);
         if (isset($job['stop'])) printf("stop%s=%d\n", $suffix, $job['stop']);
         if (isset($job['start']) && isset($job['stop'])) printf("time%s=%s\n", $suffix, round($job['stop'] - $job['start'], self::ROUND_PRECISION));
         if (isset($job['times'])) {
@@ -789,7 +790,8 @@ abstract class EncodingController {
    *   success   job completed successfully
    *   partial   job completed partially successful
    *   fail      job failed
-   * return NULL on error (test will abort)
+   * @param array $jobIds the job IDs to return status for
+   * @return NULL on error (test will abort)
    * @return array
    */
   abstract protected function getJobStatus($jobIds);

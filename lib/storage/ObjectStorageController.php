@@ -229,6 +229,15 @@ abstract class ObjectStorageController {
   abstract public function getObjectSize($container, $object);
   
   /**
+   * returns the URL to the $object specified (in the designated container)
+   * @param string $object name of the object
+   * @param boolean $auth whether or not to include auth parameters using 
+   * standard http auth method (e.g.) http://[user]:[pass]@[url]
+   * @return string
+   */
+  abstract public function getObjectUrl($object, $auth=FALSE);
+  
+  /**
    * returns an array corresponding with the names of the objects in $container
    * @param string $container the container to check 
    * @param string $prefix optional directory style prefix to limit results

@@ -13,7 +13,7 @@ RUNTIME PARAMETERS
 * bframes               [0-16] Maximum number of consecutive B-frames for h.264
                         encoding (not applicable to other output formats). 
                         Values above 5 or 6 rarely provide much benefit. 
-                        Default is 3
+                        Default is 2
 * cleanup               [0|1] whether or not to cleanup output files generated
                         during testing. Default is 1. If set to 0, output files
                         will remain in the same storage container as the input
@@ -43,12 +43,12 @@ RUNTIME PARAMETERS
                         
 BIT  16:9 Res  4:3 Res   Profile        Video Kbps  Audio Kbps  Keyframes  Frame Rate
 1    NA        NA        NA             NA          64          NA         NA
-2    400x225   400x300   Baseline, 3.0  200         64          45         15
-4    480x270   480x360   Baseline, 3.0  400         96          90         29.97
-8    640x360   640x480   Baseline, 3.0  600         128         120        29.97
-16   960x540   960x720   Main, 3.1      1800        128         240        29.97
-32   1024x576  1024x768  Main, 3.1      2000        128         300        29.97
-64   1280x720  1280x960  Main, 3.1      4500        128         300        29.97
+2    400x225   400x300   Baseline, 3.0  200         64          36         12
+4    480x270   480x360   Baseline, 3.0  400         64          45         15
+8    640x360   640x480   Baseline, 3.0  600         64          90         29.97
+16   960x540   960x720   Main, 3.1      1800        64          90         29.97
+32   1024x576  1024x768  Main, 3.1      2000        64          90         29.97
+64   1280x720  1280x960  Main, 3.1      4500        64          90         29.97
                         
                         To use this setting - simply add up the BIT value for 
                         each desired output format. For example, to enable all 
@@ -69,7 +69,10 @@ BIT  16:9 Res  4:3 Res   Profile        Video Kbps  Audio Kbps  Keyframes  Frame
                         download segment size for workers. Size quantifiers 
                         supported: B (bytes), KB (kilobytes), MB (megabytes)
                         GB (gigabytes). Default is 8MB
-* keyframe              Number of keyframes per second - default 300
+* keyframe              Number of keyframes per second - default 250
+* max_api_requests_sec  Max number of API requests allowed per second. Test 
+                        harness will introduce sleep intervals when necessary 
+                        to avoid exceeding this limit
 * profile               Desired h.264 profile (for 'mp4' format jobs only). 
                         Valid options include:
                           baseline  Baseline, 3.0 (DEFAULT)
@@ -82,6 +85,8 @@ BIT  16:9 Res  4:3 Res   Profile        Video Kbps  Audio Kbps  Keyframes  Frame
                         Default is 3
 * service               [REQUIRED] Encoding service to use for testing. One of
                         the following:
+                          aws
+                          encoding.com
                           zencoder
 * service_key           [REQUIRED] API authentication key or user ID
 * service_param[1-5]    Service specific parameters - review README files 
@@ -133,6 +138,7 @@ input_video_frame_rate  input video frame rate (optional)
 input_video_resolution  input video resolution [WxH] (optional)
 job_start               start time for the job as reported by the service 
                         (optional)
+job_status              success, partial or fail
 job_stop                stop time for the job as reported by the service 
                         (optional)
 job_time                the total time for the job as reported by the service 
@@ -177,7 +183,6 @@ size_ratio              The ratio of output_size to input_size expressed as a
                         percentage. A value less than 100 signifies that the 
                         output size was smaller than the input size
 start                   Timestamp representing when the job started
-status                  success, partial or fail
 stop                    Timestamp representing when the job ended
 time                    Total job time (stop - start). time* metrics are 
                         recorded by the test agent using job polling. These 

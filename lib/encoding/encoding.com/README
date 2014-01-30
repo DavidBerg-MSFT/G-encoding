@@ -1,0 +1,21 @@
+Implements necessary functionality for encoding testing against the 
+encoding.com platform.
+
+== API Specific Runtime Parameters ==
+* service_param1        [1|0] Set to 1 to enable encoding.com's 'multithread'
+                        feature. This improves transfer speed between S3 and 
+                        encoding.com servers through use of multithreading and
+                        range requests. By default this is enabled. Set to 0 to
+                        disable. For more information see 
+                        http://www.encoding.com/help/article/optimized_s3_transport
+* service_param2        [1|0] Set to 1 to enable encoding.com's 'nocopy' 
+                        feature. This inhibits copying of media from your S3
+                        bucket to encoding.com (media transferred directly from
+                        S3 to encoding.com servers). In order to use this 
+                        feature the media must exist in S3 and should exist in 
+                        the same region. By default this will be enabled if 
+                        these conditions are met. For more information see
+                        http://www.encoding.com/help/article/save_some_time_on_your_encodes
+* service_param3        [turbo|twin_turbo] Enable encoding.com's faster 'turbo'
+                        or 'twin_turbo' mode. For more information see
+                        http://www.encoding.com/turbo_encoding_explained
