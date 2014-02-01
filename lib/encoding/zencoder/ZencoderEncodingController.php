@@ -46,8 +46,12 @@ class ZencoderEncodingController extends EncodingController {
    * @param string $input input file name within the storage container
    * @param string $input_format input file format
    * @param int $input_size input file size (bytes)
-   * @param string $format desired output format. One of: aac, mp4, ogg, webm
-   * @param string $audio_codec desired audio codec. One of: aac, vorbis
+   * @param string $format desired output format. One of: aac, mp3, mp4, ogg, webm
+   * @param string $audio_aac_profile desired audio aac profile. One of: auto, 
+   * aac-lc, he-aac, he-aacv2
+   * @param string $audio_codec desired audio codec. One of: aac, mp3, vorbis
+   * @param string $audio_sample_rate desired audio sample rate. One of: auto, 
+   * 22050, 32000, 44100, 48000, 96000
    * @param string $video_codec desired video codec. One of: h264, theora, vp8
    * @param int $bframes max number of consecutive B-frames for h.264 output
    * @param int $reference_frames number of reference frames to use for h.264 
@@ -70,7 +74,7 @@ class ZencoderEncodingController extends EncodingController {
    *                  accordingly)
    * @return string
    */
-  protected function encode(&$storage_controller, $input, $input_format, $input_size, $format, $audio_codec, $video_codec, $bframes, $reference_frames, $two_pass, $hls, $hls_segment, $outputs) {
+  protected function encode(&$storage_controller, $input, $input_format, $input_size, $format, $audio_aac_profile, $audio_codec, $audio_sample_rate, $video_codec, $bframes, $reference_frames, $two_pass, $hls, $hls_segment, $outputs) {
     $jobId = NULL;
     if ($url = $this->getInput($storage_controller, $input)) {
       EncodingUtil::log(sprintf('Got input parameter %s for object %s', $url, $input), 'ZencoderEncodingController::encode', __LINE__);
@@ -85,8 +89,10 @@ class ZencoderEncodingController extends EncodingController {
         $job['outputs'][$i]['format'] = $hls ? ($output['audio_only'] ? 'aac' : 'ts') : $format;
         if ($this->zencoder_credentials && $this->zencoder_credentials != '1') $job['outputs'][$i]['credentials'] = $this->zencoder_credentials;
         
+        if ($audio_aac_profile != 'auto') $job['outputs'][$i]['max_aac_profile'] = $audio_aac_profile;
         $job['outputs'][$i]['audio_bitrate'] = $output['audio_bitrate'];
         $job['outputs'][$i]['audio_codec'] = $audio_codec;
+        if ($audio_sample_rate != 'auto') $job['outputs'][$i]['audio_sample_rate'] = $audio_sample_rate;
         
         // for HLS set type to segmented
         if ($hls) $job['outputs'][$i]['type'] = 'segmented';
@@ -370,9 +376,11 @@ class ZencoderEncodingController extends EncodingController {
    * may be overridden to provide stats about a job input. These will be 
    * included in the test output if provided. The return value is a hash. The 
    * following stats may be returned:
+   *   audio_aac_profile        input audio aac profile (aac-lc, he-aac, he-aacv2)
    *   audio_bit_rate           input audio bit rate (kbps)
    *   audio_channels           input audio channels
    *   audio_codec              input audio codec
+   *   audio_sample_rate        Sample rate of input audio
    *   duration                 duration (seconds - decimal) of the media file
    *   error                    optional error message(s)
    *   job_start                start time for the job as reported by the service 
@@ -380,12 +388,16 @@ class ZencoderEncodingController extends EncodingController {
    *   job_stop                 stop time for the job as reported by the service 
    *                            (optional)
    *   job_time                 the total time for the job as reported by the service
+   *   output_audio_aac_profiles output audio aac profiles (csv) - reported by 
+   *                            encoding service (optional) (aac-lc, he-aac, he-aacv2)
    *   output_audio_bit_rate    output audio bit rates (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_channels    output audio channels (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_codecs      output audio codecs (csv) - reported by encoding 
    *                            service (optional)
+   *   output_audio_sample_rates Sample rates of output audio (csv) - reported by 
+   *                            encoding service (optional)
    *   output_durations         Output durations (csv) - reported by encoding service 
    *                            (optional)
    *   output_failed            Number of outputs that failed to generate
@@ -393,7 +405,7 @@ class ZencoderEncodingController extends EncodingController {
    *                            (optional)
    *   output_success           Number of successful outputs generated
    *   output_total_bit_rates   Output total bit rates - kbps (csv) - as reported by 
-    *                           encoding service (optional)
+   *                            encoding service (optional)
    *   output_video_bit_rates   Output video bit rates - kbps (csv) - as reported by 
    *                            encoding service (optional)
    *   output_video_codecs      Output video codecs (csv) - as reported by encoding 
@@ -422,6 +434,7 @@ class ZencoderEncodingController extends EncodingController {
           if (isset($response['job']['input_media_file'])) {
             EncodingUtil::log(sprintf('Successfully retrieved job stats for job %s', $jobId), 'ZencoderEncodingController::jobStats', __LINE__);
             if (isset($response['job']['input_media_file']['audio_bitrate_in_kbps'])) $stats['audio_bit_rate'] = $response['job']['input_media_file']['audio_bitrate_in_kbps']*1;
+            if (isset($response['job']['input_media_file']['audio_sample_rate'])) $stats['audio_sample_rate'] = $response['job']['input_media_file']['audio_sample_rate']*1;
             if (isset($response['job']['input_media_file']['channels'])) $stats['audio_channels'] = $response['job']['input_media_file']['channels']*1;
             if (isset($response['job']['input_media_file']['audio_codec'])) $stats['audio_codec'] = $response['job']['input_media_file']['audio_codec'];
             if (isset($response['job']['input_media_file']['duration_in_ms'])) $stats['duration'] = $response['job']['input_media_file']['duration_in_ms']/1000;
@@ -450,6 +463,8 @@ class ZencoderEncodingController extends EncodingController {
             $stats['output_audio_bit_rate'] = array();
             $stats['output_audio_channels'] = array();
             $stats['output_audio_codecs'] = array();
+            $stats['output_audio_bit_rate'] = array();
+            $stats['output_audio_sample_rates'] = array();
             $stats['output_durations'] = array();
             $stats['output_formats'] = array();
             $stats['output_total_bit_rates'] = array();
@@ -467,6 +482,7 @@ class ZencoderEncodingController extends EncodingController {
                 
                 // output status
                 if (isset($output['audio_bitrate_in_kbps'])) $stats['output_audio_bit_rate'][] = $output['audio_bitrate_in_kbps']*1;
+                if (isset($output['audio_sample_rate'])) $stats['output_audio_sample_rates'][] = $output['audio_sample_rate']*1;
                 if (isset($output['channels'])) $stats['output_audio_channels'][] = $output['channels']*1;
                 if (isset($output['audio_codec'])) $stats['output_audio_codecs'][] = $output['audio_codec'];
                 if (isset($output['duration_in_ms'])) $stats['output_durations'][] = $output['duration_in_ms']/1000;

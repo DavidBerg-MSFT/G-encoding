@@ -64,8 +64,12 @@ class EDCEncodingController extends EncodingController {
    * @param string $input input file name within the storage container
    * @param string $input_format input file format
    * @param int $input_size input file size (bytes)
-   * @param string $format desired output format. One of: aac, mp4, ogg, webm
-   * @param string $audio_codec desired audio codec. One of: aac, vorbis
+   * @param string $format desired output format. One of: aac, mp3, mp4, ogg, webm
+   * @param string $audio_aac_profile desired audio aac profile. One of: auto, 
+   * aac-lc, he-aac, he-aacv2
+   * @param string $audio_codec desired audio codec. One of: aac, mp3, vorbis
+   * @param string $audio_sample_rate desired audio sample rate. One of: auto, 
+   * 22050, 32000, 44100, 48000, 96000
    * @param string $video_codec desired video codec. One of: h264, theora, vp8
    * @param int $bframes max number of consecutive B-frames for h.264 output
    * @param int $reference_frames number of reference frames to use for h.264 
@@ -88,7 +92,7 @@ class EDCEncodingController extends EncodingController {
    *                  accordingly)
    * @return string
    */
-  protected function encode(&$storage_controller, $input, $input_format, $input_size, $format, $audio_codec, $video_codec, $bframes, $reference_frames, $two_pass, $hls, $hls_segment, $outputs) {
+  protected function encode(&$storage_controller, $input, $input_format, $input_size, $format, $audio_aac_profile, $audio_codec, $audio_sample_rate, $video_codec, $bframes, $reference_frames, $two_pass, $hls, $hls_segment, $outputs) {
     // set nocopy feature if it was not explicitely set
     if (!isset($this->edc_nocopy)) $this->edc_nocopy = $storage_controller->getApi() == 's3' && $this->sameRegion($storage_controller);
     
@@ -113,8 +117,29 @@ class EDCEncodingController extends EncodingController {
     else $job['format']['output'] = $format;
     
     // audio_codec
-    $audio_codec = $audio_codec == 'aac' ? 'libfaac' : 'libvorbis';
+    switch($audio_codec) {
+      case 'vorbis':
+        $audio_codec = 'libvorbis';
+        break;
+      case 'mp3':
+        $audio_codec = 'libmp3lame';
+        break;
+      default:
+        switch($audio_aac_profile) {
+          case 'he-aac':
+            $audio_codec = 'dolby_heaac';
+            break;
+          case 'he-aacv2':
+            $audio_codec = 'dolby_heaacv2';
+            break;
+          default:
+            $audio_codec = 'dolby_aac';
+            break;
+        }
+        break;
+    }
     $job['format']['audio_codec'] = $audio_codec;
+    if ($audio_sample_rate != 'auto') $job['format']['audio_sample_rate'] = $audio_sample_rate;
     
     // video_codec
     $video_codec = $video_codec == 'h264' ? 'libx264' : ($video_codec == 'theora' ? 'libtheora' : 'libvpx');
@@ -305,9 +330,11 @@ class EDCEncodingController extends EncodingController {
    * may be overridden to provide stats about a job input. These will be 
    * included in the test output if provided. The return value is a hash. The 
    * following stats may be returned:
+   *   audio_aac_profile        input audio aac profile (aac-lc, he-aac, he-aacv2)
    *   audio_bit_rate           input audio bit rate (kbps)
    *   audio_channels           input audio channels
    *   audio_codec              input audio codec
+   *   audio_sample_rate        Sample rate of input audio
    *   duration                 duration (seconds - decimal) of the media file
    *   error                    optional error message(s)
    *   job_start                start time for the job as reported by the service 
@@ -315,12 +342,16 @@ class EDCEncodingController extends EncodingController {
    *   job_stop                 stop time for the job as reported by the service 
    *                            (optional)
    *   job_time                 the total time for the job as reported by the service
+   *   output_audio_aac_profiles output audio aac profiles (csv) - reported by 
+   *                            encoding service (optional) (aac-lc, he-aac, he-aacv2)
    *   output_audio_bit_rate    output audio bit rates (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_channels    output audio channels (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_codecs      output audio codecs (csv) - reported by encoding 
    *                            service (optional)
+   *   output_audio_sample_rates Sample rates of output audio (csv) - reported by 
+   *                            encoding service (optional)
    *   output_durations         Output durations (csv) - reported by encoding service 
    *                            (optional)
    *   output_failed            Number of outputs that failed to generate
@@ -328,7 +359,7 @@ class EDCEncodingController extends EncodingController {
    *                            (optional)
    *   output_success           Number of successful outputs generated
    *   output_total_bit_rates   Output total bit rates - kbps (csv) - as reported by 
-    *                           encoding service (optional)
+   *                            encoding service (optional)
    *   output_video_bit_rates   Output video bit rates - kbps (csv) - as reported by 
    *                            encoding service (optional)
    *   output_video_codecs      Output video codecs (csv) - as reported by encoding 
@@ -360,6 +391,7 @@ class EDCEncodingController extends EncodingController {
               if (isset($media['audio_bitrate'])) $stats['audio_bit_rate'] = $media['audio_bitrate']*1;
               if (isset($media['audio_channels'])) $stats['audio_channels'] = $media['audio_channels']*1;
               if (isset($media['audio_codec'])) $stats['audio_codec'] = $media['audio_codec'];
+              if (isset($media['audio_sample_rate'])) $stats['audio_sample_rate'] = $media['audio_sample_rate']*1;
               if (isset($media['duration'])) $stats['duration'] = $media['duration']*1;
               if (isset($job['created'])) $stats['job_start'] = $job['created'];
               if (isset($job['finished'])) $stats['job_stop'] = $job['finished'];

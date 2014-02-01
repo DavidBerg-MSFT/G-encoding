@@ -8,6 +8,8 @@ require_once(dirname(dirname(__FILE__)) . '/storage/ObjectStorageController.php'
  */
 abstract class EncodingController {
   
+  const DEFAULT_AUDIO_AAC_PROFILE = 'auto';
+  const DEFAULT_AUDIO_SAMPLE_RATE = 'auto';
   const DEFAULT_BFRAMES = 2;
   const DEFAULT_CONCURRENT_REQUESTS = 8;
   const DEFAULT_FORMAT = '_default_';
@@ -28,9 +30,11 @@ abstract class EncodingController {
   // number of seconds to sleep before setting output sizes
   const SLEEP_BEFORE_SET_SIZE = 10;
   const STATUS_CODES = 'download,queue,encode,upload,success,fail,partial';
-  const SUPPORTED_FORMATS = 'aac,mp4,ogg,webm,_default_';
+  const SUPPORTED_AUDIO_AAC_PROFILES = 'auto,aac-lc,he-aac,he-aacv2';
+  const SUPPORTED_AUDIO_SAMPLE_RATES = 'auto,22050,32000,44100,48000,96000';
+  const SUPPORTED_FORMATS = 'aac,mp3,mp4,ogg,webm,_default_';
   const SUPPORTED_PROFILES = 'baseline,main,high';
-  const VALID_JOB_STATS = 'audio_bit_rate,audio_channels,audio_codec,duration,error,job_start,job_stop,job_time,output_audio_bit_rate,output_audio_channels,output_audio_codecs,output_durations,output_failed,output_formats,output_success,output_total_bit_rates,output_video_bit_rates,output_video_codecs,output_video_frame_rates,output_video_resolutions,total_bit_rate,video_bit_rate,video_codec,video_frame_rate,video_resolution';
+  const VALID_JOB_STATS = 'audio_aac_profile,audio_bit_rate,audio_channels,audio_codec,audio_sample_rate,duration,error,job_start,job_stop,job_time,output_audio_aac_profile,output_audio_bit_rate,output_audio_channels,output_audio_codecs,output_audio_sample_rates,output_durations,output_failed,output_formats,output_success,output_total_bit_rates,output_video_bit_rates,output_video_codecs,output_video_frame_rates,output_video_resolutions,total_bit_rate,video_bit_rate,video_codec,video_frame_rate,video_resolution';
   
   /**
    * Runtime properties - set automatically following instantiation. 
@@ -41,7 +45,9 @@ abstract class EncodingController {
   protected $service_secret;
   
   // private attributes - may not be accessed by API implementations
+  private $audio_aac_profile;
   private $audio_bitrate;
+  private $audio_sample_rate;
   private $audio_codecs;
   private $bframes;
   private $cleanup;
@@ -97,6 +103,13 @@ abstract class EncodingController {
       EncodingUtil::log(sprintf('Unable to initiate cleanup because object tracker file %s does not exist or controller has not been properly initialized', $cleanup_file), 'EncodingController::cleanup', __LINE__, TRUE);
       $success = FALSE;
     }
+    
+    // service cleanup
+    if (!$this->cleanupService()) {
+      $success = FALSE;
+      EncodingUtil::log(sprintf('Service cleanup failed'), 'EncodingController::cleanup', __LINE__, TRUE);
+    }
+    
     return $success;
   }
   
@@ -138,7 +151,10 @@ abstract class EncodingController {
             if (is_subclass_of($_instances[$service], 'EncodingController')) {
               // set runtime parameters
               $_instances[$service]->service = $service;
+              $_instances[$service]->audio_aac_profile = getenv('bm_param_audio_aac_profile') ? trim(strtolower(getenv('bm_param_audio_aac_profile'))) : self::DEFAULT_AUDIO_AAC_PROFILE;
               $_instances[$service]->audio_bitrate = getenv('bm_param_audio_bitrate') ? getenv('bm_param_audio_bitrate')*1 : NULL;
+              $_instances[$service]->audio_sample_rate = getenv('bm_param_audio_sample_rate') ? trim(strtolower(getenv('bm_param_audio_sample_rate'))) : self::DEFAULT_AUDIO_SAMPLE_RATE;
+              if ($_instances[$service]->audio_sample_rate != 'auto') $_instances[$service]->audio_sample_rate *= 1;
               if (getenv('bm_param_bframes') !== NULL) $_instances[$service]->bframes = getenv('bm_param_bframes')*1;
               if (!isset($_instances[$service]->bframes)) $_instances[$service]->bframes = self::DEFAULT_BFRAMES;
               $_instances[$service]->cleanup = getenv('bm_param_cleanup') === NULL || getenv('bm_param_cleanup') == '1';
@@ -157,7 +173,7 @@ abstract class EncodingController {
               if (getenv('bm_param_input_min_segment')) $_instances[$service]->input_min_segment = self::sizeToBytes(getenv('bm_param_input_min_segment'));
               $_instances[$service]->keyframe = getenv('bm_param_keyframe')*1;
               if (!$_instances[$service]->keyframe) $_instances[$service]->keyframe = self::DEFAULT_KEYFRAME;
-              $_instances[$service]->profile = $_instances[$service]->format == 'mp4' ? trim(strtolower(getenv('bm_param_profile'))) : NULL;
+              $_instances[$service]->profile = trim(strtolower(getenv('bm_param_profile')));
               $_instances[$service]->service_key = getenv('bm_param_service_key');
               $_instances[$service]->service_region = getenv('bm_param_service_region');
               $_instances[$service]->service_secret = getenv('bm_param_service_secret');
@@ -179,6 +195,10 @@ abstract class EncodingController {
                     switch($_instances[$service]->formats[$i]) {
                       case 'aac':
                         $_instances[$service]->audio_codecs[$i] = 'aac';
+                        $_instances[$service]->video_codecs[$i] = NULL;
+                        break;
+                      case 'mp3':
+                        $_instances[$service]->audio_codecs[$i] = 'mp3';
                         $_instances[$service]->video_codecs[$i] = NULL;
                         break;
                       case 'mp4':
@@ -234,6 +254,30 @@ abstract class EncodingController {
     
     if (isset($_instances[$service])) return $_instances[$service];
     else return $nl = NULL;
+  }
+  
+  /**
+   * returns the h.264 profile level to use for $profile
+   * @param string $profile the profile: baseline, main or high
+   * @return float
+   */
+  protected final function getH264ProfileLevel($profile) {
+    if (!$profile) $profile = 'baseline';
+    $level = NULL;
+    switch($profile) {
+      case 'baseline':
+        $level = 3;
+        break;
+      case 'main':
+        $level = 3.1;
+        break;
+      case 'high':
+        $level = 4;
+        break;
+    }
+    EncodingUtil::log(sprintf('Returning profile level %s for profile %s', $level, $profile), 'EncodingController::getH264ProfileLevel', __LINE__);
+    
+    return $level;
   }
   
   /**
@@ -487,7 +531,7 @@ abstract class EncodingController {
       }
       
       if (!count($job_outputs)) EncodingUtil::log('Unable to start encoding job - there are no outputs', 'EncodingController::run', __LINE__, TRUE);
-      else if ($jobId = $this->encode($this->storage_controller, $object, $iformat, $size, $oformat, $audio_codec, $video_codec, $this->bframes, $this->reference_frames, $this->two_pass, $this->hls ? TRUE : FALSE, $this->hls_segment, $job_outputs)) {
+      else if ($jobId = $this->encode($this->storage_controller, $object, $iformat, $size, $oformat, $this->audio_aac_profile, $audio_codec, $this->audio_sample_rate, $video_codec, $this->bframes, $this->reference_frames, $this->two_pass, $this->hls ? TRUE : FALSE, $this->hls_segment, $job_outputs)) {
         EncodingUtil::log(sprintf('Encoding job started successfully - job ID %s', $jobId), 'EncodingController::run', __LINE__);
         $status = $this->initialStatusDownload() ? 'download' : 'queue';
         $log = array();
@@ -565,9 +609,21 @@ abstract class EncodingController {
     if (!isset($this->validated)) {
       $this->validated = TRUE;
       
+      // audio aac profile
+      if ($this->audio_aac_profile && !in_array($this->audio_aac_profile, explode(',', self::SUPPORTED_AUDIO_AAC_PROFILES))) {
+        EncodingUtil::log(sprintf('Invalid audio_aac_profile %s', $this->audio_aac_profile), 'EncodingController::validate', __LINE__, TRUE);
+        $this->validated = FALSE;
+      }
+      
       // audio bitrate
       if ($this->audio_bitrate && ($this->audio_bitrate < 0 || $this->audio_bitrate > self::MAX_AUDIO_BITRATE)) {
         EncodingUtil::log(sprintf('Invalid audio_bitrate %d', $this->audio_bitrate), 'EncodingController::validate', __LINE__, TRUE);
+        $this->validated = FALSE;
+      }
+      
+      // audio aac profile
+      if ($this->audio_sample_rate && !in_array($this->audio_sample_rate, explode(',', self::SUPPORTED_AUDIO_SAMPLE_RATES))) {
+        EncodingUtil::log(sprintf('Invalid audio_sample_rate %s', $this->audio_sample_rate), 'EncodingController::validate', __LINE__, TRUE);
         $this->validated = FALSE;
       }
       
@@ -654,6 +710,15 @@ abstract class EncodingController {
   // these methods may by overriden by an API implementation
   
   /**
+   * invoked following test completion. May be used to perform cleanup tasks.
+   * Should return TRUE on success, FALSE on failure
+   * @return boolean
+   */
+  protected function cleanupService() {
+    return TRUE;
+  }
+  
+  /**
    * return TRUE if the initial status of an encoding job is 'download', 
    * meaning the input must first be downloaded from the origin to the 
    * encoding service. If overridden and returns FALSE, it will be assumed that
@@ -677,9 +742,11 @@ abstract class EncodingController {
    * may be overridden to provide stats about a job input. These will be 
    * included in the test output if provided. The return value is a hash. The 
    * following stats may be returned:
+   *   audio_aac_profile        input audio aac profile (aac-lc, he-aac, he-aacv2)
    *   audio_bit_rate           input audio bit rate (kbps)
    *   audio_channels           input audio channels
    *   audio_codec              input audio codec
+   *   audio_sample_rate        Sample rate of input audio
    *   duration                 duration (seconds - decimal) of the media file
    *   error                    optional error message(s)
    *   job_start                start time for the job as reported by the service 
@@ -687,12 +754,16 @@ abstract class EncodingController {
    *   job_stop                 stop time for the job as reported by the service 
    *                            (optional)
    *   job_time                 the total time for the job as reported by the service
+   *   output_audio_aac_profiles output audio aac profiles (csv) - reported by 
+   *                            encoding service (optional) (aac-lc, he-aac, he-aacv2)
    *   output_audio_bit_rate    output audio bit rates (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_channels    output audio channels (csv) - reported by encoding 
    *                            service (optional)
    *   output_audio_codecs      output audio codecs (csv) - reported by encoding 
    *                            service (optional)
+   *   output_audio_sample_rates Sample rates of output audio (csv) - reported by 
+   *                            encoding service (optional)
    *   output_durations         Output durations (csv) - reported by encoding service 
    *                            (optional)
    *   output_failed            Number of outputs that failed to generate
@@ -700,7 +771,7 @@ abstract class EncodingController {
    *                            (optional)
    *   output_success           Number of successful outputs generated
    *   output_total_bit_rates   Output total bit rates - kbps (csv) - as reported by 
-    *                           encoding service (optional)
+   *                            encoding service (optional)
    *   output_video_bit_rates   Output video bit rates - kbps (csv) - as reported by 
    *                            encoding service (optional)
    *   output_video_codecs      Output video codecs (csv) - as reported by encoding 
@@ -753,8 +824,12 @@ abstract class EncodingController {
    * @param string $input input file name within the storage container
    * @param string $input_format input file format
    * @param int $input_size input file size (bytes)
-   * @param string $format desired output format. One of: aac, mp4, ogg, webm
-   * @param string $audio_codec desired audio codec. One of: aac, vorbis
+   * @param string $format desired output format. One of: aac, mp3, mp4, ogg, webm
+   * @param string $audio_aac_profile desired audio aac profile. One of: auto, 
+   * aac-lc, he-aac, he-aacv2
+   * @param string $audio_codec desired audio codec. One of: aac, mp3, vorbis
+   * @param string $audio_sample_rate desired audio sample rate. One of: auto, 
+   * 22050, 32000, 44100, 48000, 96000
    * @param string $video_codec desired video codec. One of: h264, theora, vp8
    * @param int $bframes max number of consecutive B-frames for h.264 output
    * @param int $reference_frames number of reference frames to use for h.264 
@@ -777,7 +852,7 @@ abstract class EncodingController {
    *                  accordingly)
    * @return string
    */
-  abstract protected function encode(&$storage_controller, $input, $input_format, $input_size, $format, $audio_codec, $video_codec, $bframes, $reference_frames, $two_pass, $hls, $hls_segment, $outputs);
+  abstract protected function encode(&$storage_controller, $input, $input_format, $input_size, $format, $audio_aac_profile, $audio_codec, $audio_sample_rate, $video_codec, $bframes, $reference_frames, $two_pass, $hls, $hls_segment, $outputs);
   
   /**
    * return a hash defining the current state of $jobIds. The hash should be

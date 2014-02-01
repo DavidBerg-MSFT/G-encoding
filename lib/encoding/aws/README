@@ -1,5 +1,54 @@
 Implements necessary functionality for encoding testing against the 
 AWS Elastic Transcoder platform.
 
+PIPELINE NOTES: AWS Transcoder requires each job to be submitted against an 
+encoding pipeline. Pipelines can be created/configured using the AWS management 
+console. Each AWS account can have up to 4 pipelines. A pipeline defines the 
+input and output buckets for transcode jobs. Each pipeline is specific to a 
+region. The test harness will not create pipelines. Pipelines must be created 
+manually prior to testing. The test harness will look for a pipeline where 
+the input and output buckets correspond with the 'storage_container' 
+parameter. At least 1 such pipeline must exist. 'service_param1' may be used
+to specify a specific pipeline. Additionally, multiple pipelines may be used 
+in conjunction with multi-job tests to distribute jobs between them (each 
+pipeline supports up to 12 or 20 parallel jobs).
+
+PRESET NOTES: Job output formats are set using transcode presets. Presets are 
+saved in the AWS account. The test harness automatically creates necessary  
+presets during testing based on test parameters. Any presets created are 
+deleted upon test completion. If presets already exist matching output 
+requirements, these will be used.
+
+DEFAULT VALUES: The AWS Transcoder API does not support selecting an audio 
+bit rate automatically. If the 'audio_bitrate' runtime parameter is not 
+specified, it will be set to 64 Kbps
+
+API REQUEST LIMITS: The AWS Transcoder API enforces request limits of 2 create
+job and 4 read job requests/second. These limits will be applied automatically 
+by the test harness
+
+
 == API Specific Runtime Parameters ==
-None
+* service_param1        [id|name|_all_|_first_] Used to designate the AWS 
+                        pipeline(s) to submit jobs to. The pipeline identifies
+                        the S3 bucket containing input files and bucket where 
+                        output files should be saved to. Every encoding job 
+                        must be assigned to a pipeline. This parameter may be
+                        used to designate a specific pipeline(s) to submit jobs
+                        to. The InputBucket and OutputBucket for the designated 
+                        pipeline must be the same as the 'storage_container' 
+                        parameter. This parameter may be set to either the 
+                        name or ID of a pipeline. Pipelines should be in a 
+                        'Active' status. The special values _all_ and _first_ 
+                        may also be designated with the following meanings:
+                        
+                          _all_:   distribute job(s) between all Active 
+                                   pipelines with same input/output buckets as 
+                                   designated by the 'storage_container' 
+                                   parameter
+                          _first_: assign job(s) to the first Active pipeline 
+                                   with the same input/output buckets as 
+                                   designated by the 'storage_container' 
+                                   parameter
+                        
+                        The default value for this parameter is _all_

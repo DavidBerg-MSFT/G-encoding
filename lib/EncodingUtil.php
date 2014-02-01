@@ -42,17 +42,13 @@ class EncodingUtil {
   public static function curl($requests, $retBody=FALSE) {
     global $bm_param_debug;
     static $encoding_concurrent_requests;
-    static $max_api_requests_sec;
     static $last_api_time;
     static $last_api_time_requests;
     
     if (!isset($bm_param_debug)) $bm_param_debug = getenv('bm_param_debug') == '1';
     if (!isset($encoding_concurrent_requests)) $encoding_concurrent_requests = getenv('bm_param_concurrent_requests')*1;
     if (!$encoding_concurrent_requests) $encoding_concurrent_requests = EncodingController::DEFAULT_CONCURRENT_REQUESTS;
-    if (!isset($max_api_requests_sec)) {
-      $max_api_requests_sec = getenv('bm_param_max_api_requests_sec');
-      if (!is_numeric($max_api_requests_sec) || $max_api_requests_sec < 1) $max_api_requests_sec = FALSE;
-    }
+    $max_api_requests_sec = getenv('bm_param_max_api_requests_sec');
     if ($max_api_requests_sec && $last_api_time >= (time() - 1) && $last_api_time_requests >= $max_api_requests_sec) {
       self::log(sprintf('Sleeping 1 second because max API requests %d would be exceeded', $max_api_requests_sec), 'EncodingUtil::curl', __LINE__);
       sleep(1);

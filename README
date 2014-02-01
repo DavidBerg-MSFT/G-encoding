@@ -7,9 +7,19 @@ every possible encoding scenario, rather, a set of common encoding options.
 
 
 RUNTIME PARAMETERS
+* audio_aac_profile     For aac and mp4 formats - the desired aac audio profile
+                        One of the following: auto, aac-lc, he-aac, he-aacv2
+                        Default value is 'auto' - when set to auto, this field
+                        will be left empty and the encoding service will 
+                        automatically select a profile based on other settings
 * audio_bitrate         Desired audio bitrate (kbps) - if not specified, 
                         encoding service will select an appropriate rate based
                         on the input file and other settings
+* audio_sample_rate     Desired audio sample rate in Hz. One of the following:
+                        auto, 22050, 32000, 44100, 48000, 96000. Default value
+                        is 'auto' - when set to auto, this field will be left
+                        empty and the encoding service will automatically 
+                        select a sample rate based on other settings
 * bframes               [0-16] Maximum number of consecutive B-frames for h.264
                         encoding (not applicable to other output formats). 
                         Values above 5 or 6 rarely provide much benefit. 
@@ -28,6 +38,7 @@ RUNTIME PARAMETERS
 * debug                 [0|1] Enable verbose logging? (default 0)
 * format                Desired output format, one of the following:
                           aac =>  aac audio codec (audio default)
+                          mp3 =>  mp3 audio codec
                           mp4 =>  h.264 video / aac audio codec (video default)
                           ogg =>  theora video and vorbis audio codec
                           webm => vp8 video and vorbis audio codec
@@ -43,7 +54,7 @@ RUNTIME PARAMETERS
                         
 BIT  16:9 Res  4:3 Res   Profile        Video Kbps  Audio Kbps  Keyframes  Frame Rate
 1    NA        NA        NA             NA          64          NA         NA
-2    400x225   400x300   Baseline, 3.0  200         64          36         12
+2    400x225   400x300   Baseline, 3.0  200         64          36         10
 4    480x270   480x360   Baseline, 3.0  400         64          45         15
 8    640x360   640x480   Baseline, 3.0  600         64          90         29.97
 16   960x540   960x720   Main, 3.1      1800        64          90         29.97
@@ -77,7 +88,7 @@ BIT  16:9 Res  4:3 Res   Profile        Video Kbps  Audio Kbps  Keyframes  Frame
                         Valid options include:
                           baseline  Baseline, 3.0 (DEFAULT)
                           main      Main, 3.1
-                          high      High
+                          high      High, 4.0
                         For further details regarding h.264 profiles see 
                         http://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Profiles
 * reference_frames      [0-16] Number of reference frames to use for h.264
@@ -124,9 +135,11 @@ RESULT METRICS
 error                   An error message string - if provided by the service 
                         (for status partial or fail)
 input                   Name of the input file (in storage_container)
+input_audio_aac_profile AAC profile of input audio (optional)
 input_audio_bit_rate    input audio bit rate - kbps (optional)
 input_audio_channels    input audio channels (optional)
 input_audio_codec       input audio codec (optional)
+input_audio_sample_rate sample rate of input audio (optional)
 input_duration          duration (seconds - decimal) of the media file (optional)
 input_format            Input format (based on file extension)
 input_size              Size of the input file (bytes)
@@ -144,13 +157,16 @@ job_stop                stop time for the job as reported by the service
 job_time                the total time for the job as reported by the service 
                         (optional)
 output_failed           Number of outputs that failed to generate (optional)
-
+output_audio_aac_profiles output audio aac profile (csv) - reported by encoding 
+                        service (optional)
 output_audio_bit_rate   output audio bit rates (csv) - reported by encoding 
                         service (optional)
 output_audio_channels   output audio channels (csv) - reported by encoding 
                         service (optional)
 output_audio_codecs     output audio codecs (csv) - reported by encoding 
                         service (optional)
+output_audio_sample_rates output audio sample rates (csv) - reported by 
+                        encoding service (optional)
 output_durations        Output durations (csv) - reported by encoding service 
                         (optional)
 output_formats          Output formats (csv) - reported by encoding service 
