@@ -242,9 +242,11 @@ abstract class ObjectStorageController {
    * @param string $container the container to check 
    * @param string $prefix optional directory style prefix to limit results
    * (e.g. '/images/gifs')
+   * @param string $marker used for follow on requests for containers with 
+   * more than the max allowed in a single request
    * @return array
    */
-  abstract protected function listContainer($container, $prefix=NULL);
+  abstract protected function listContainer($container, $prefix=NULL, $marker=NULL);
   
   /**
    * returns TRUE if the object identified by $name exists in $container. 

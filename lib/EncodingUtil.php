@@ -37,9 +37,14 @@ class EncodingUtil {
    *   range:   optional request byte range
    * @param boolean $retBody if TRUE, the response body will be included in the 
    * return
+   * @param int $maxConcurrentRequests optional limit to the number of 
+   * concurrent API requests - a 1 second sleep will be inserted between 
+   * batches of requests if this value is specified and the number of $requests
+   * exceeds it. This parameter overrides the 'max_api_requests_sec' runtime 
+   * parameter
    * @return array
    */
-  public static function curl($requests, $retBody=FALSE) {
+  public static function curl($requests, $retBody=FALSE, $maxConcurrentRequests=NULL) {
     global $bm_param_debug;
     static $encoding_concurrent_requests;
     static $last_api_time;
@@ -48,12 +53,15 @@ class EncodingUtil {
     if (!isset($bm_param_debug)) $bm_param_debug = getenv('bm_param_debug') == '1';
     if (!isset($encoding_concurrent_requests)) $encoding_concurrent_requests = getenv('bm_param_concurrent_requests')*1;
     if (!$encoding_concurrent_requests) $encoding_concurrent_requests = EncodingController::DEFAULT_CONCURRENT_REQUESTS;
-    $max_api_requests_sec = getenv('bm_param_max_api_requests_sec');
-    if ($max_api_requests_sec && $last_api_time >= (time() - 1) && $last_api_time_requests >= $max_api_requests_sec) {
-      self::log(sprintf('Sleeping 1 second because max API requests %d would be exceeded', $max_api_requests_sec), 'EncodingUtil::curl', __LINE__);
+    $max_api_requests_sec = $maxConcurrentRequests ? $maxConcurrentRequests : getenv('bm_param_max_api_requests_sec');
+    if ($max_api_requests_sec && $last_api_time >= (time() - 1) && ($last_api_time_requests + count($requests)) > $max_api_requests_sec) {
+      self::log(sprintf('Sleeping 1 second because max API requests in the past 1 second %d would exceed max allowed %d', $last_api_time_requests + count($requests), $max_api_requests_sec), 'EncodingUtil::curl', __LINE__);
       sleep(1);
+      $last_api_time = time();
+      $last_api_time_requests = 0;
     }
     else if ($last_api_time < time()) {
+      $last_api_time = time();
       $last_api_time_requests = 0;
     }
     
@@ -103,7 +111,7 @@ class EncodingUtil {
       $ofiles[$i] = sprintf('%s/%s', getenv('bm_run_dir'), 'curl_output_' . rand());
       
       // max_api_requests_sec
-      if ($max_api_requests_sec && ($request_num % $max_api_requests_sec) == 0) {
+      if ($max_api_requests_sec && (!$encoding_concurrent_requests || $max_api_requests_sec <= $encoding_concurrent_requests) && ($request_num % $max_api_requests_sec) == 0) {
         self::log(sprintf('Number of concurrent requests %d exceeds max API requests/second %d. Added 1 second sleep at %d', count($requests), $max_api_requests_sec, $request_num), 'EncodingUtil::curl', __LINE__);
         fwrite($fp, sprintf("sleep 1\n"));
         $last_api_time_requests = 0;
@@ -113,7 +121,7 @@ class EncodingUtil {
       fwrite($fp, sprintf("%s > %s 2>&1 &\n", $cmd, $ofiles[$i]));
       
       // max concurrent requests
-      if (($request_num % $encoding_concurrent_requests) == 0) {
+      if ((!$max_api_requests_sec || $max_api_requests_sec > $encoding_concurrent_requests) && ($request_num % $encoding_concurrent_requests) == 0) {
         self::log(sprintf('Number of concurrent requests %d exceeds max allowed %d. Added wait at %d', count($requests), $encoding_concurrent_requests, $request_num), 'EncodingUtil::curl', __LINE__);
         fwrite($fp, sprintf("wait\n"));
       }

@@ -166,7 +166,10 @@ class EDCEncodingController extends EncodingController {
           if (isset($output['frame_rate'])) $job['format'][$key = $hls ? 'framerates' : 'framerate'] = (isset($job['format'][$key]) ? $job['format'][$key] . ',' : '') . $output['frame_rate'];
           if (isset($output['keyframe'])) $job['format'][$key = $hls ? 'keyframes' : 'keyframe'] = (isset($job['format'][$key]) ? $job['format'][$key] . ',' : '') . $output['keyframe'];
           // only 1 h.264 profile is supported - but 'baseline' is not allowed for some reason (it is the default profile)
-          if ($format == 'mp4' && isset($output['h264_profile']) && $output['h264_profile'] != 'baseline') $job['format']['profile'] = $output['h264_profile']; 
+          if ($format == 'mp4' && isset($output['h264_profile'])) {
+            if ($output['h264_profile'] != 'baseline') $job['format']['profile'] = $output['h264_profile'];
+            $job['format']['level'] = str_replace('.', '', $this->getH264ProfileLevel($output['h264_profile']));
+          }
         }
       }
       // destination - only 1 supported - need base name minus file extension

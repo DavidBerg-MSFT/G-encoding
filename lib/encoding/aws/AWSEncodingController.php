@@ -24,6 +24,8 @@ class AWSEncodingController extends EncodingController {
   const AWS_DEFAULT_AUDIO_BITRATE = 64;
   // default h.264 profile
   const AWS_DEFAULT_H264_PROFILE = 'baseline';
+  // default webm profile
+  const AWS_DEFAULT_WEBM_PROFILE = 0;
   // hash algorithm
   const AWS_HASH_ALGORITHM = 'sha256';
   // jobs resource URI
@@ -115,11 +117,17 @@ class AWSEncodingController extends EncodingController {
     $matched = TRUE;
     foreach($jobPreset as $key => $val) {
       if (isset($preset[$key])) {
-        $matched = is_array($val) ? $this->comparePresets($val, $preset[$key]) : trim(strtolower($val)) == trim(strtolower($preset[$key]));
+        // boolean comparison
+        $bval = is_bool($val) ? $val : ($val == 'true' ? TRUE : ($val == 'false' ? FALSE : NULL));
+        $bpval = isset($preset[$key]) ? (is_bool($preset[$key]) ? $preset[$key] : ($preset[$key] == 'true' ? TRUE : ($preset[$key] == 'false' ? FALSE : NULL))) : NULL;
+        $matched = is_array($val) ? $this->comparePresets($val, $preset[$key]) : (trim(strtolower($val)) == trim(strtolower($preset[$key])) || (isset($bval) && isset($bpval) && $bval == $bpval));
       }
       else $matched = FALSE;
       
-      if (!$matched) break;
+      if (!$matched) {
+        EncodingUtil::log(sprintf('Preset %s/%s did not match key %s; %s != %s', $preset['Id'], $preset['Name'], $key, $val, $preset[$key]), 'AWSEncodingController::cleanupService', __LINE__);
+        break;
+      }
     }
     // audio only
     if (isset($preset['Video']) && !isset($jobPreset['Video'])) $matched = FALSE;
@@ -206,7 +214,7 @@ class AWSEncodingController extends EncodingController {
     // increment pipeline pointer
     if ($jobId) {
       $this->aws_job_pipelines_ptr++;
-      if ($this->aws_job_pipelines_ptr >= count($this->aws_job_pipelines)) $aws_job_pipelines_ptr = 0;
+      if ($this->aws_job_pipelines_ptr >= count($this->aws_job_pipelines)) $this->aws_job_pipelines_ptr = 0;
     }
     
     return $jobId;
@@ -252,17 +260,8 @@ class AWSEncodingController extends EncodingController {
         $requests[] = array('url' => $this->getUrl($uri), 'headers' => $this->getHeaders($uri));
       }
       
-      // limit # of requests/second
-      $reset_max_api_requests_sec = NULL;
-      if (!getenv('bm_param_max_api_requests_sec') || getenv('bm_param_max_api_requests_sec') > self::AWS_API_MAX_READ_JOB_REQUESTS_SEC) {
-        $reset_max_api_requests_sec = getenv('bm_param_max_api_requests_sec');
-        putenv('bm_param_max_api_requests_sec', self::AWS_API_MAX_READ_JOB_REQUESTS_SEC);
-        EncodingUtil::log(sprintf('Setting max_api_requests_sec to %d from %d', self::AWS_API_MAX_READ_JOB_REQUESTS_SEC, $reset_max_api_requests_sec), 'AWSEncodingController::getJobStatus', __LINE__);
-        $reset_max_api_requests_sec = TRUE;
-      }
-      
       // initiate parallel requests to get job status
-      if ($result = EncodingUtil::curl($requests, TRUE)) {
+      if ($result = EncodingUtil::curl($requests, TRUE, self::AWS_API_MAX_READ_JOB_REQUESTS_SEC)) {
         foreach($jobIds as $i => $jobId) {
           if ($result['status'][$i] >= 200 && $result['status'][$i] < 300) {
             EncodingUtil::log(sprintf('Status request for job %s successful - status code %d', $jobId, $result['status'][$i]), 'AWSEncodingController::getJobStatus', __LINE__);
@@ -307,10 +306,6 @@ class AWSEncodingController extends EncodingController {
       }
       else EncodingUtil::log(sprintf('Unable to invoke job status API request'), 'AWSEncodingController::getJobStatus', __LINE__, TRUE);
       
-      if ($reset_max_api_requests_sec) {
-        EncodingUtil::log(sprintf('Resetting max_api_requests_sec to %s', $reset_max_api_requests_sec === TRUE ? 'NULL' : $reset_max_api_requests_sec), 'AWSEncodingController::getJobStatus', __LINE__);
-        putenv('bm_param_max_api_requests_sec', $reset_max_api_requests_sec === TRUE ? NULL : $reset_max_api_requests_sec);
-      }
     }
     else EncodingUtil::log(sprintf('Invoked without specifying any jobIds'), 'AWSEncodingController::getJobStatus', __LINE__, TRUE);
     
@@ -414,6 +409,10 @@ class AWSEncodingController extends EncodingController {
           $jobPreset['Video']['CodecOptions']['Level'] = $this->getH264ProfileLevel($jobPreset['Video']['CodecOptions']['Profile']);
           if ($reference_frames) $jobPreset['Video']['CodecOptions']['MaxReferenceFrames'] = $reference_frames;
         }
+        // webm
+        else {
+          $jobPreset['Video']['CodecOptions']['Profile'] = self::AWS_DEFAULT_WEBM_PROFILE;
+        }
         if ($keyframe) {
           $jobPreset['Video']['KeyframesMaxDist'] = $keyframe;
           $jobPreset['Video']['FixedGOP'] = TRUE;
@@ -445,7 +444,7 @@ class AWSEncodingController extends EncodingController {
           EncodingUtil::log(sprintf('Existing preset %s/%s found matching desired output parameters', $preset['Id'], $preset['Name']), 'AWSEncodingController::getPresetId', __LINE__);
           $presetId = $preset['Id'];
         }
-        else EncodingUtil::log(sprintf('Existing preset %s/%s does not match output parameters', $preset['Id'], $preset['Name']), 'AWSEncodingController::getPresetId', __LINE__);
+        else EncodingUtil::log(sprintf('Existing preset %s/%s does not match job parameters', $preset['Id'], $preset['Name']), 'AWSEncodingController::getPresetId', __LINE__);
       }
       // create new preset
       if (!$presetId) {
@@ -456,7 +455,8 @@ class AWSEncodingController extends EncodingController {
           if (isset($response['Preset']['Id'])) {
             $presetId = $response['Preset']['Id'];
             EncodingUtil::log(sprintf('Create preset %s successfully', $presetId), 'AWSEncodingController::getPresetId', __LINE__);
-            $this->aws_presets[$presetId] = $response['Preset'];
+            $jobPreset['Id'] = $presetId;
+            $this->aws_presets[$presetId] = $jobPreset;
             // add ID of temporary preset to file used during cleanup to delete it
             exec(sprintf('echo "%s" >> %s', $presetId, $this->getPresetsFile()));
           }
@@ -483,16 +483,18 @@ class AWSEncodingController extends EncodingController {
       if (isset($response['Presets']) && is_array($response['Presets'])) {
         $presets = array();
         EncodingUtil::log(sprintf('Get presets API request successful - API response includes %d presets. NextPageToken: %s', count($response['Presets']), isset($response['NextPageToken']) ? $response['NextPageToken'] : NULL), 'AWSEncodingController::getPresets', __LINE__);
-        foreach($response['Presets'] as $preset) {
-          $presets[$preset['Id']] = $preset;
-        }
-        if (isset($response['NextPageToken']) && $response['NextPageToken'] && ($more = $this->getPresets($response['NextPageToken']))) {
-          EncodingUtil::log(sprintf('Successfully invoked next page of getPresets using NextPageToken %s. %d presets returned', $response['NextPageToken'], count($more)), 'AWSEncodingController::getPresets', __LINE__);
-          foreach(array_keys($more) as $presetId) {
-            $presets[$presetId] = $more[$presetId];
+        foreach($response['Presets'] as $preset) $presets[$preset['Id']] = $preset;
+        
+        // results are paginated - get next page
+        if (isset($response['NextPageToken']) && $response['NextPageToken']) {
+          if ($more = $this->getPresets($response['NextPageToken'])) {
+            EncodingUtil::log(sprintf('Successfully invoked next page of getPresets using NextPageToken %s. %d presets returned', $response['NextPageToken'], count($more)), 'AWSEncodingController::getPresets', __LINE__);
+            foreach(array_keys($more) as $presetId) {
+              $presets[$presetId] = $more[$presetId];
+            }
           }
+          else EncodingUtil::log(sprintf('Unable to invoke next page of getPresets using NextPageToken %s', $response['NextPageToken']), 'AWSEncodingController::getPresets', __LINE__, TRUE); 
         }
-        else EncodingUtil::log(sprintf('Unable to invoke next page of getPresets using NextPageToken %s', $response['NextPageToken']), 'AWSEncodingController::getPresets', __LINE__, TRUE);
       }
       else EncodingUtil::log(sprintf('Get presets API request successful - but failed to include "Presets" attribute in the response'), 'AWSEncodingController::getPresets', __LINE__, TRUE);
     }
@@ -570,21 +572,24 @@ class AWSEncodingController extends EncodingController {
    * @param array $params optional hash of query parameters
    * @param mixed $body optional object to include in the request body 
    * (json formatted) - for non PUT and POST requests only
+   * @param boolean $is429Retry TRUE if the invocation is due to a 429 (API 
+   * request limit) response
    * @return mixed
    */
-  private function invokeApi($uri, $method='GET', $params=NULL, $body=NULL) {
+  private function invokeApi($uri, $method='GET', $params=NULL, $body=NULL, $is429Retry=FALSE) {
     $response = NULL;
     $request = array('method' => $method, 'url' => $this->getUrl($uri, $params), 'headers' => $this->getHeaders($uri, $method, $params, $body));
     if ($body && ($method == 'POST' || $method == 'PUT')) $request['body'] = $this->apiJsonEncode($body);
-    if ($result = EncodingUtil::curl(array($request), TRUE)) {
+    if ($result = EncodingUtil::curl(array($request), TRUE, self::AWS_API_MAX_READ_JOB_REQUESTS_SEC)) {
       if ($result['status'][0] >= 200 && $result['status'][0] < 300) {
         EncodingUtil::log(sprintf('%s %s completed successfully with status code %d', $method, $uri, $result['status'][0]), 'AWSEncodingController::invokeApi', __LINE__);
         if (!$result['body'][0] || !($response = json_decode($result['body'][0], TRUE))) $response = TRUE;
       }
-      else if ($result['status'][0] == 429) {
-        EncodingUtil::log(sprintf('Got API rate throttling response code %d. Sleeping 1 second and retrying request', $result['status'][0]), 'AWSEncodingController::invokeApi', __LINE__, TRUE);
-        sleep(1);
-        return $this->invokeApi($uri, $method, $params, $body);
+      // API rate throttling - sleep 2 seconds and try again
+      else if (!$is429Retry && ($result['status'][0] == 429 || (isset($result['body'][0]) && preg_match('/faster than the maximum request rate/', $result['body'][0])))) {
+        EncodingUtil::log(sprintf('Got API rate throttling response code %d. Sleeping 2 seconds and retrying request', $result['status'][0]), 'AWSEncodingController::invokeApi', __LINE__, TRUE);
+        sleep(2);
+        return $this->invokeApi($uri, $method, $params, $body, TRUE);
       }
       else {
         EncodingUtil::log(sprintf('%s %s resulting in status code %d, body: %s', $method, $uri, $result['status'][0], isset($result['body'][0]) ? $result['body'][0] : ''), 'AWSEncodingController::invokeApi', __LINE__, TRUE);

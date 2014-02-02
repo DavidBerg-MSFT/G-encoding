@@ -154,12 +154,15 @@ class GoogleObjectStorageController extends ObjectStorageController {
    * @param string $container the container to check 
    * @param string $prefix optional directory style prefix to limit results
    * (e.g. '/images/gifs')
+   * @param string $marker used for follow on requests for containers with 
+   * more than the max allowed in a single request
    * @return array
    */
-  protected function listContainer($container, $prefix=NULL) {
+  protected function listContainer($container, $prefix=NULL, $marker=NULL) {
     $headers = array('date' => gmdate(self::SIGNATURE_DATE_FORMAT));
-    $params = NULL;
-    if ($prefix) $params = array('prefix' => $prefix);
+    $params = array();
+    if ($prefix) $params['prefix'] = $prefix;
+    if ($marker) $params['marker'] = $marker;
     $headers['Authorization'] = $this->sign('GET', $headers, $container, NULL, $params);
     $request = array('method' => 'GET', 'url' => $this->getUrl($container, NULL, $params), 'headers' => $headers);
     $objects = NULL;
@@ -169,7 +172,17 @@ class GoogleObjectStorageController extends ObjectStorageController {
         $objects = array();
         if (preg_match_all('/key\>([^<]+)\<\/key/i', $result['body'][0], $m)) {
           $objects = $m[1];
-          EncodingUtil::log(sprintf('Bucket %s contains %d objects: %s', $container, count($objects), implode(', ', $objects)), 'GoogleObjectStorageController::listContainer', __LINE__);
+          // truncated request - initiate follow on using marker
+          if (preg_match('/istruncated\>true\<\/istruncated/i', $result['body'][0])) {
+            $nextMarker = preg_match('/nextmarker\>([^<]+)\<\/nextmarker/i', $result['body'][0], $m) ? $m[1] : $objects[count($objects) - 1];
+            EncodingUtil::log(sprintf('GET Bucket %s results are truncated - initiating follow on request using next marker %s', $container, $nextMarker), 'GoogleObjectStorageController::listContainer', __LINE__);
+            if ($more_objects = $this->listContainer($container, $prefix, $nextMarker)) {
+              EncodingUtil::log(sprintf('GET Bucket %s follow on request successful - adding %d objects', $container, count($more_objects)), 'GoogleObjectStorageController::listContainer', __LINE__);
+              foreach($more_objects as $obj) if ($obj != $marker) $objects[] = $obj;
+            }
+            else EncodingUtil::log(sprintf('GET Bucket %s follow on request failed', $container), 'GoogleObjectStorageController::listContainer', __LINE__, TRUE);
+          }
+          if (!$marker) EncodingUtil::log(sprintf('Bucket %s contains %d objects: %s', $container, count($objects)), 'GoogleObjectStorageController::listContainer', __LINE__);
         }
         else EncodingUtil::log(sprintf('Bucket %s is empty with prefix %s', $container, $prefix), 'GoogleObjectStorageController::listContainer', __LINE__);
       }

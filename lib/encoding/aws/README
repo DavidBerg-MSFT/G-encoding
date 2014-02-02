@@ -27,6 +27,9 @@ API REQUEST LIMITS: The AWS Transcoder API enforces request limits of 2 create
 job and 4 read job requests/second. These limits will be applied automatically 
 by the test harness
 
+UNSUPPORTED: The AWS Transcoder API does not support 2-pass transcoding, 
+B-Frames, AAC audio only or ProRes transcoding.
+
 
 == API Specific Runtime Parameters ==
 * service_param1        [id|name|_all_|_first_] Used to designate the AWS 

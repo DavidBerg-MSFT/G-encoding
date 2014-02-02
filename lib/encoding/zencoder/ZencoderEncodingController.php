@@ -100,7 +100,10 @@ class ZencoderEncodingController extends EncodingController {
         // video specific settings
         if (!$output['audio_only']) {
           if ($bframes) $job['h264_bframes'] = $bframes;
-          if (isset($output['h264_profile'])) $job['h264_profile'] = $output['h264_profile'];
+          if ($format == 'mp4' && isset($output['h264_profile'])) {
+            $job['h264_profile'] = $output['h264_profile'];
+            $job['h264_level'] = $this->getH264ProfileLevel($output['h264_profile']);
+          }
           if ($reference_frames) $job['h264_reference_frames'] = $reference_frames;
           if (isset($output['keyframe'])) $job['keyframe_rate'] = $output['keyframe'];
           if (isset($output['frame_rate'])) $job['outputs'][$i]['max_frame_rate'] = $output['frame_rate'];
@@ -168,6 +171,7 @@ class ZencoderEncodingController extends EncodingController {
                 $state = $response['state'];
                 $input_state = $response['input']['state'];
                 $output_states = array();
+                $output_events = array();
                 $output_progress = array();
                 $output_failed = 0;
                 $output_success = 0;
@@ -179,14 +183,16 @@ class ZencoderEncodingController extends EncodingController {
                   if (isset($output['current_event'])) {
                     $event = trim(strtolower($output['current_event']));
                     if ($event == 'uploading') $output_uploading++;
+                    $output_events[] = $output['current_event'];
                   }
-                  if (isset($output['current_event_progress'])) $output_progress[] = $output['current_event_progress'];
+                  if (isset($output['current_event_progress'])) $output_progress[] = round($output['current_event_progress'], 2) . '%';
                   if ($state == 'queued' || $state == 'assigning') $output_queued++;
                   else if ($state == 'finished') $output_success++;
                   else if ($state == 'failed') $output_failed++;
                 }
                 $output_states = array_keys($output_states);
-                EncodingUtil::log(sprintf('Job State %s - Overall: %s; Input: %s; Outputs: %s; Progress: %s; Queued: %d; Uploading: %d; Pending: %d; Success: %d; Failed: %d', $jobId, $state, $input_state, implode(', ', $output_states), implode(', ', $output_progress), $output_queued, $output_uploading, $num_outputs - $output_success - $output_failed, $output_success, $output_failed), 'ZencoderEncodingController::getJobStatus', __LINE__);
+                if ($output_states || $output_events) EncodingUtil::log(sprintf('Outputs - States: %s; Events: %s; Progress: %s', implode(', ', $output_states), implode(', ', $output_events), implode(', ', $output_progress)), 'ZencoderEncodingController::getJobStatus', __LINE__);
+                EncodingUtil::log(sprintf('Job State %s - Overall: %s; Input: %s; Queued: %d; Uploading: %d; Pending: %d; Success: %d; Failed: %d', $jobId, $state, $input_state, $output_queued, $output_uploading, $num_outputs - $output_success - $output_failed, $output_success, $output_failed), 'ZencoderEncodingController::getJobStatus', __LINE__);
                 
                 // downloading
                 if ($input_state == 'queued' || $input_state == 'processing' || isset($response['input']['current_event'])) $status[$jobId] = 'download';
