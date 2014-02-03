@@ -409,6 +409,12 @@ class EDCEncodingController extends EncodingController {
               if (isset($media['frame_rate'])) $stats['video_frame_rate'] = $media['frame_rate'];
               if (isset($media['size'])) $stats['video_resolution'] = $media['size'];
               
+              if (isset($job['format']) && is_array($job['format'])) {
+                $stats['output_failed'] = 0;
+                $stats['output_success'] = 0;
+                foreach($job['format'] as $format) trim(strtolower($format['status'])) == 'error' ? $stats['output_failed']++ : $stats['output_success']++;
+              }
+              
               $debug = '';
               foreach($stats as $key => $val) $debug .= $key . '=' . $val . '; ';
               EncodingUtil::log(sprintf('Got stats for job %s: %s', $jobId, $debug), 'EDCEncodingController::jobStats', __LINE__);

@@ -149,6 +149,7 @@ input_video_bit_rate    input video bit rate - kbps (optional)
 input_video_codec       input video codec (optional)
 input_video_frame_rate  input video frame rate (optional)
 input_video_resolution  input video resolution [WxH] (optional)
+job_id                  the job id for this encoding request
 job_start               start time for the job as reported by the service 
                         (optional)
 job_status              success, partial or fail

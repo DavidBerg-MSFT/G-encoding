@@ -552,7 +552,7 @@ abstract class EncodingController {
       $valid_job_stats = explode(',', self::VALID_JOB_STATS);
       $same_region = $this->sameRegion($this->storage_controller);
       $i = 1;
-      foreach($this->jobs as $job) {
+      foreach($this->jobs as $jobId => $job) {
         $suffix = count($this->jobs) > 1 ? $i++ : '';
         printf("input%s=%s\n", $suffix, $job['input']);
         if (isset($job['input_format'])) printf("input_format%s=%s\n", $suffix, $job['input_format']);
@@ -560,6 +560,7 @@ abstract class EncodingController {
           printf("input_size%s=%s\n", $suffix, $job['input_size']);
           printf("input_size_mb%s=%s\n", $suffix, round(($job['input_size']/1024)/1024, self::ROUND_PRECISION));
         }
+        printf("job_id%s=%s\n", $suffix, $jobId);
         printf("job_status%s=%s\n", $suffix, $job['status']);
         if (is_array($job['job_stats'])) {
           ksort($job['job_stats']);
