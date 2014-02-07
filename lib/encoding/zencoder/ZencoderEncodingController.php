@@ -107,7 +107,7 @@ class ZencoderEncodingController extends EncodingController {
           if ($reference_frames) $job['h264_reference_frames'] = $reference_frames;
           if (isset($output['keyframe'])) $job['keyframe_rate'] = $output['keyframe'];
           if (isset($output['frame_rate'])) $job['outputs'][$i]['max_frame_rate'] = $output['frame_rate'];
-          $job['one_pass'] = !$two_pass;
+          $job['outputs'][$i]['one_pass'] = !$two_pass;
           if ($hls && $hls_segment) $job['segment_seconds'] = $hls_segment;
           if (isset($output['video_bitrate'])) $job['outputs'][$i]['video_bitrate'] = $output['video_bitrate'];
           if ($video_codec) $job['outputs'][$i]['video_codec'] = $video_codec;
@@ -206,6 +206,8 @@ class ZencoderEncodingController extends EncodingController {
                 else if ($state == 'finished') $status[$jobId] = 'success';
                 // failed
                 else if ($state == 'failed' || $state == 'cancelled') $status[$jobId] = $output_success ? 'partial' : 'fail';
+                // output waiting - pre-queue state
+                else if ($state == 'waiting') $status[$jobId] = 'queue';
                 // this should cover all scenarios - otherwise something is wrong
                 
                 if (isset($status[$jobId])) {

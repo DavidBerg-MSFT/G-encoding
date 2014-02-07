@@ -24,6 +24,8 @@ class AWSEncodingController extends EncodingController {
   const AWS_DEFAULT_AUDIO_BITRATE = 64;
   // default h.264 profile
   const AWS_DEFAULT_H264_PROFILE = 'baseline';
+  // default max keyframe interval
+  const AWS_DEFAULT_MAX_KEYFRAME_INTERVAL = 250;
   // default webm profile
   const AWS_DEFAULT_WEBM_PROFILE = 0;
   // hash algorithm
@@ -64,6 +66,33 @@ class AWSEncodingController extends EncodingController {
   private $aws_presets;
   // AWS region
   private $aws_region;
+  
+  
+  /**
+   * encodes an object (PHP array) into an AWS compatible JSON string. The 
+   * AWS API uses strings for all values (i.e. numerical and boolean types are
+   * not supported), so these values must first be stringified before json 
+   * encoding
+   * @param array $obj the object to encode
+   * @return string
+   */
+  private function apiJsonEncode($obj) {
+    $json = NULL;
+    if (is_array($obj)) {
+      $keys = array_keys($obj);
+      $is_array = $keys[0] === 0;
+      $json = $is_array ? '[' : '{';
+      foreach($obj as $key => $val) {
+        if (is_array($val)) $val = $this->apiJsonEncode($val);
+        else if (is_bool($val)) $val = $val ? '"true"' : '"false"';
+        else if (is_numeric($val)) $val = sprintf('"%s"', $val);
+        else $val = json_encode($val);
+        $json .= sprintf('%s%s%s', strlen($json) == 1 ? '' : ', ', $is_array ? '': '"' . $key . '": ', $val);
+      }
+      $json .= $is_array ? ']' : '}';
+    }
+    return $json;
+  }
   
   /**
    * invoked once during validation. Should return TRUE if authentication is 
@@ -413,10 +442,8 @@ class AWSEncodingController extends EncodingController {
         else {
           $jobPreset['Video']['CodecOptions']['Profile'] = self::AWS_DEFAULT_WEBM_PROFILE;
         }
-        if ($keyframe) {
-          $jobPreset['Video']['KeyframesMaxDist'] = $keyframe;
-          $jobPreset['Video']['FixedGOP'] = TRUE;
-        }
+        $jobPreset['Video']['KeyframesMaxDist'] = $keyframe ? $keyframe : self::AWS_DEFAULT_MAX_KEYFRAME_INTERVAL;
+        $jobPreset['Video']['FixedGOP'] = FALSE;
         $jobPreset['Video']['BitRate'] = $video_bitrate ? $video_bitrate : 'auto';
         $jobPreset['Video']['FrameRate'] = $frame_rate ? $frame_rate : 'auto';
         if ($width) {
@@ -450,7 +477,7 @@ class AWSEncodingController extends EncodingController {
       if (!$presetId) {
         $jobPreset['Name'] = 'Temporary Preset for Testing';
         $jobPreset['Description'] = 'This preset was created automatically by the CloudHarmony encoding test harness';
-        EncodingUtil::log(sprintf('Suitable existing preset not found - attempting to create'), 'AWSEncodingController::getPresetId', __LINE__);
+        EncodingUtil::log(sprintf('Suitable existing preset not found - attempting to create: %s', $this->apiJsonEncode($jobPreset)), 'AWSEncodingController::getPresetId', __LINE__);
         if ($response = $this->invokeApi(self::AWS_PRESETS_RESOURCE, 'POST', NULL, $jobPreset)) {
           if (isset($response['Preset']['Id'])) {
             $presetId = $response['Preset']['Id'];
@@ -683,32 +710,6 @@ class AWSEncodingController extends EncodingController {
     else EncodingUtil::log(sprintf('Invoked without specifying jobId'), 'AWSEncodingController::jobStats', __LINE__, TRUE);
     
     return count($stats) ? $stats : NULL;
-  }
-  
-  /**
-   * encodes an object (PHP array) into an AWS compatible JSON string. The 
-   * AWS API uses strings for all values (i.e. numerical and boolean types are
-   * not supported), so these values must first be stringified before json 
-   * encoding
-   * @param array $obj the object to encode
-   * @return string
-   */
-  private function apiJsonEncode($obj) {
-    $json = NULL;
-    if (is_array($obj)) {
-      $keys = array_keys($obj);
-      $is_array = $keys[0] === 0;
-      $json = $is_array ? '[' : '{';
-      foreach($obj as $key => $val) {
-        if (is_array($val)) $val = $this->apiJsonEncode($val);
-        else if (is_bool($val)) $val = $val ? '"true"' : '"false"';
-        else if (is_numeric($val)) $val = sprintf('"%s"', $val);
-        else $val = json_encode($val);
-        $json .= sprintf('%s%s%s', strlen($json) == 1 ? '' : ', ', $is_array ? '': '"' . $key . '": ', $val);
-      }
-      $json .= $is_array ? ']' : '}';
-    }
-    return $json;
   }
   
   /**

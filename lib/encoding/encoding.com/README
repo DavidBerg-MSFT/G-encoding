@@ -1,6 +1,14 @@
 Implements necessary functionality for encoding testing against the 
 encoding.com platform.
 
+WebM Notes:
+Single pass WebM encoding does not seem to work. During testing, we discovered
+such outputs were missing audio and had very grainy and distorted video. 
+encoding.com recommended switching to two-pass using preset 1 for better 
+quality, and this does in indeed fix the problem. Using two_pass=0 will result
+in preset=6 and two_pass=1 will use preset=1.
+
+
 == API Specific Runtime Parameters ==
 * service_param1        [1|0] Set to 1 to enable encoding.com's 'multithread'
                         feature. This improves transfer speed between S3 and 

@@ -149,6 +149,7 @@ class EDCEncodingController extends EncodingController {
     $job['format']['bframes'] = $bframes > 1 ? 2 : 0;
     $job['format']['refs'] = $reference_frames;
     $job['format']['two_pass'] = $two_pass ? 'yes' : 'no';
+    if ($format == 'webm') $job['format']['preset'] = $two_pass ? 1 : 6;
     
     // turbo
     if ($this->edc_twin_turbo) $job['format']['twin_turbo'] = 'yes';
@@ -408,6 +409,9 @@ class EDCEncodingController extends EncodingController {
               }
               if (isset($media['frame_rate'])) $stats['video_frame_rate'] = $media['frame_rate'];
               if (isset($media['size'])) $stats['video_resolution'] = $media['size'];
+              
+              // single job - format is not an array
+              if (isset($job['format']['status'])) $job['format'] = array($job['format']);
               
               if (isset($job['format']) && is_array($job['format'])) {
                 $stats['output_failed'] = 0;

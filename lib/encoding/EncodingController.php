@@ -22,6 +22,7 @@ abstract class EncodingController {
   const MAX_CONCURRENT_REQUESTS = 32;
   const MAX_HLS_SEGMENT = 1000;
   const MAX_KEYFRAME = 1000;
+  const MAX_POLL_RETRIES = 3;
   const MAX_REFERENCE_FRAMES = 16;
   const MAX_VIDEO_BITRATE = 1048576;
   const CLEANUP_FILE = '.output_objects';
@@ -317,9 +318,10 @@ abstract class EncodingController {
   /**
    * Polls for completion of test encoding jobs. returns TRUE if all jobs are
    * complete, FALSE otherwise
+   * @param int $retry used to initiate re-tries (up to MAX_POLL_RETRIES)
    * @return boolean
    */
-  public final function poll() {
+  public final function poll($retry=0) {
     $complete = TRUE;
     if (isset($this->jobs) && count($this->jobs)) {
       $pollJobs = array();
@@ -361,7 +363,17 @@ abstract class EncodingController {
         foreach(array_keys($this->jobs) as $jobId) if (!isset($this->jobs[$jobId]['log']['success']) && !isset($this->jobs[$jobId]['log']['fail']) && !isset($this->jobs[$jobId]['log']['partial'])) $incomplete[] = $jobId;
         $complete = count($incomplete) ? FALSE : TRUE;
       }
-      else EncodingUtil::log(sprintf('Failed to get status from encoding service. Test aborting'), 'EncodingController::poll', __LINE__, TRUE);
+      else if ($retry < self::MAX_POLL_RETRIES) {
+        EncodingUtil::log(sprintf('Failed to get status from encoding service - initiating retry attempt %d', $retry + 1), 'EncodingController::poll', __LINE__);
+        $complete = $this->poll($retry + 1);
+      }
+      else {
+        EncodingUtil::log(sprintf('Failed to get status from encoding service. Test aborting'), 'EncodingController::poll', __LINE__, TRUE);
+        foreach($pollJobs as $jobId) {
+          $this->jobs[$jobId]['log']['fail'] = microtime(TRUE);
+          $this->jobs[$jobId]['stop'] = microtime(TRUE);
+        }
+      }
     }
     return $complete;
   }

@@ -21,7 +21,10 @@ requirements, these will be used.
 
 DEFAULT VALUES: The AWS Transcoder API does not support selecting an audio 
 bit rate automatically. If the 'audio_bitrate' runtime parameter is not 
-specified, it will be set to 64 Kbps
+specified, it will be set to 64 Kbps. 
+
+If 'keyframe' is not specified, it (KeyframesMaxDist) will be explicitly set 
+to 250. 'FixedGOP' is always FALSE.
 
 API REQUEST LIMITS: The AWS Transcoder API enforces request limits of 2 create
 job and 4 read job requests/second. These limits will be applied automatically 
